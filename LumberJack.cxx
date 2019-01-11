@@ -63,6 +63,7 @@ void LumberJack::BestPVSelection(cTString& tree_name,
 
     for (const auto& treestr : keep_trees){
         TTree* ttree = static_cast<TTree*>(inFile->Get(treestr));
+        //tree->GetLeaf(dimension_var);
 
         if(ttree->GetListOfBranches()->FindObject(dimension_var) == nullptr){
             std::cerr << "Array dim variable \"" << dimension_var << "\" not found in tree \"" << treestr << "\"\n";
@@ -86,35 +87,54 @@ void LumberJack::prepareInputAndOutputTree(cTString& outfilename, cTString& targ
     outFile = TFile::Open(outfilename, "RECREATE");
 
     for(cTString& tree_str : keep_trees){
-      TTree *input_tree  = (TTree*)inFile->Get(tree_str);
-      TTree *output_tree = (TTree*)outFile->Get(tree_str);
+        TTree *input_tree  = static_cast<TTree*>(inFile->Get(tree_str));
+        TTree *output_tree = new TTree(tree_str, tree_str);
+        // Get leaves of input tree
+        std::vector<TLeaf*> selected_leaves;
 
-      std::vector<TString> selected_branches;
-      getListOfBranchesBySelection(selected_branches, input_tree, leaf_selection);
+        getListOfBranchesBySelection(selected_leaves, input_tree, leaf_selection);
 
-      for(const auto& branch : selected_branches){
-        // output_tree->Branch()
-      }
+        for(const auto& leaf : selected_leaves){
+            std::string leaf_type = leaf->GetTypeName();
+            if(leaf_type == "Float_t"){
+                float_leaves.emplace_back(LeafStore<Float_t>(leaf, FLOAT_LEAF));
+                output_tree->Branch(float_leaves.back().name().c_str(), &float_leaves.back(), float_leaves.back().name(true).c_str());
+            }
+            else if(leaf_type == "Double_t"){
+                double_leaves.emplace_back(LeafStore<Double_t>(leaf, DOUBLE_LEAF));
+            }
+            else if(leaf_type == "Int_t"){
+                int_leaves.emplace_back(LeafStore<Int_t>(leaf, INT_LEAF));
+            }
+            else if(leaf_type == "Long_t"){
+                long_leaves.emplace_back(LeafStore<Long_t>(leaf, LONG_LEAF));
+            }
+            else if(leaf_type == "ULong_t"){
+                ulong_leaves.emplace_back(LeafStore<ULong_t>(leaf, ULONG_LEAF));
+            }
+        }
+        output_tree->Write();
+        outFile->Close();
     }
 }
 
-void LumberJack::getListOfBranchesBySelection(std::vector<TString>& selected, TTree* target_tree, std::string& selection)
+void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string& selection)
 {
-  // Collect branches that match regex
-  TObjArray* leaf_list = target_tree->GetListOfLeaves();
-  /*
+    // Collect branches that match regex
+    TObjArray* leaf_list = target_tree->GetListOfLeaves();
+    /*
 
-  std::string regex_select;
+    std::string regex_select;
 
-  // Remove whitespace
-  for(auto c = selection.begin(); c != selection.end();){
+    // Remove whitespace
+    for(auto c = selection.begin(); c != selection.end();){
     c = (*c == ' ') ? selection.erase(c) : c + 1;
-  }
-  // Build regex
-  if (selection.empty()){
+    }
+    // Build regex
+    if (selection.empty()){
     regex_select = R"(([\w\d_]+))";
-  }
-  else {
+    }
+    else {
     if (selection.size() >= 2){
       if(*selection.begin() == '(' && selection.back() == ')'){ // User entered regex
         regex_select = selection;
@@ -130,19 +150,19 @@ void LumberJack::getListOfBranchesBySelection(std::vector<TString>& selected, TT
         regex_select = "^" + selection + "$";
       }
     }
-  }
-  // Loop over branches, append if regex matches
-  std::cout << regex_select << '\n';
-  std::regex re(regex_select);
+    }
+    // Loop over branches, append if regex matches
+    std::cout << regex_select << '\n';
+    std::regex re(regex_select);
 
-  for(const auto& leaf : *leaf_list){
+    for(const auto& leaf : *leaf_list){
     std::smatch match;
     std::cout << leaf->GetName() << '\n';
     std::regex_search(std::string(leaf->GetName()), match, re);
     //if(match.ready()) std::cout << leaf->GetName() << '\n';
-  }
-  */
-  for(const auto& leaf : *leaf_list){
-    selected.push_back(leaf->GetName());
-  }
+    }
+    */
+    for(const auto& leaf : *leaf_list){
+        selected.push_back(static_cast<TLeaf*>(leaf));
+    }
 }

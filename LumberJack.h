@@ -5,7 +5,6 @@
 #include <vector>
 #include <typeinfo>
 #include <string>
-#include <regex>
 #include <algorithm>
 
 #include "TString.h"
@@ -13,8 +12,13 @@
 #include "RooArgList.h"
 #include "TFile.h"
 #include "TTree.h"
-//#include "TLeaf.h"
+#include "TLeaf.h"
+#include "TLeafI.h"
+#include "TLeafF.h"
+#include "TLeafD.h"
 #include "TKey.h"
+
+#include "LeafStore.h"
 
 using cTString = const TString;
 
@@ -35,7 +39,7 @@ public:
 	 * selectVars    == Vars to be kept. Default: All
 	 *                  "XYZ*"   -> All branches that start with XYZ (Full wildcard support)
 	 *                  any number of ellipsis possible
-	 * 				          "(REGEX)" -> vars matched by regex expression REGEX
+	 * 				    "(REGEX)" -> vars matched by regex expression REGEX
 	 * var_ending   == new variable ending for selected vars
 	 */
 	void BestPVSelection(cTString& tree_name,
@@ -47,21 +51,21 @@ public:
 	void dev();
 
 private:
-
 	void freeFileGracefully(TFile*);
 	void prepareInputAndOutputTree(cTString& outfilename, cTString& target_tree, std::string& leaf_selection);
-	void getListOfBranchesBySelection(std::vector<TString>&, TTree* target_tree, std::string& selection);
+	void getListOfBranchesBySelection(std::vector<TLeaf*>&, TTree* target_tree, std::string& selection);
 
 	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
+	TTree *output_tree = nullptr; // Current output tree
 	TString input_filename, dimension_var;
 
 	std::vector<TString> keep_trees;
 
-	//std::vector<TLeaf> double_leaves,
-	//				   float_leaves,
-	//				   int_leaves,
-	//				   long_leaves,
-	//				   ulong_leaves;
+	std::vector<LeafStore<Double_t>> double_leaves;
+	std::vector<LeafStore<Float_t>>  float_leaves;
+	std::vector<LeafStore<Int_t>>    int_leaves;
+	std::vector<LeafStore<Long_t>>   long_leaves;
+	std::vector<LeafStore<ULong_t>>  ulong_leaves;
 
 	ClassDef(LumberJack,1)
 };
