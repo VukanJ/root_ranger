@@ -1,15 +1,13 @@
-CC=g++
 
 # common use flags and libraries
-CXXFLAGS := -Wall -Wextra  -Woverloaded-virtual -fPIC -W -pipe -ftree-vectorize -Ofast
+CXXFLAGS := -Wall -Wextra -Woverloaded-virtual -fPIC -W -pipe -ftree-vectorize -Ofast
 ROOTLIBS  :=  $(shell root-config --libs) -lRooFit -lRooStats -lTreePlayer
 ROOTFLAGS :=  $(shell root-config --cflags)
 
-CXXFLAGS  += $(ROOTFLAGS)
-CXXFLAGS  += $(ROOTLIBS)
+CXXFLAGS  += $(ROOTFLAGS) $(ROOTLIBS)
 
-LDFLAGS       = -O2 # -Wl
-SOFLAGS       = -shared
+LDFLAGS   = -O2 # -Wl
+SOFLAGS   = -shared
 SHLIB    := lumberjack.so
 HDRS     := LumberJack.h LumberJack_LinkDef.h
 COMPILE = $(CC) $(CXXFLAGS) -c

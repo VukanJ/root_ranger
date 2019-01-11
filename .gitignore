@@ -3,4 +3,7 @@
 *.cc
 *.so
 *.swp
+*.root
+CMakeFiles/
+CMakeCache.txt
 
