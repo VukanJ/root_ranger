@@ -6,6 +6,7 @@
 #include <typeinfo>
 #include <string>
 #include <algorithm>
+#include <iomanip>
 
 #include "TString.h"
 #include "TDirectoryFile.h"
@@ -30,16 +31,22 @@ public:
 	void changeFile(cTString& rootfile);
 
 	void treeCopy(cTString&, cTString& rename=TString(""));
-	
+
 	void treeCopySelection(cTString& treename,
-	                       cTString& branch_selection,
-						   cTString& cut_selection,
+	                       const std::string& branch_selection,
+						   const std::string& cut_selection,
 						   cTString& rename=TString(""));
+
+	void flattenTree(cTString& treename,
+					 cTString& array_dimension,
+					 const std::string& branch_selection,
+					 const std::string& cut_selection,
+					 cTString& rename=TString(""));
 
 	void BPVselection(cTString& treename,
 	                  TString&  array_dimension,
-					  cTString& branch_selection,
-					  cTString& cut_selection,
+					  const std::string& branch_selection,
+					  const std::string& cut_selection,
 					  cTString& rename=TString(""));
 
 	void Print() const;
@@ -48,9 +55,9 @@ public:
 	void dev();
 
 	enum Action {
-		simpleCopy,
-		selectionCopy,
+		copytree,
 		selection,
+		flatten_tree,
 		bpv_selection
 	};
 
@@ -61,34 +68,33 @@ public:
 		*/
 		TString name,
 		        newname,
-				dimension_var,
-				branch_selection,
-				cut_selection;
+				dimension_var;
+		std::string branch_selection,
+		            cut_selection;
 
 		Action action;
 	};
 private:
 	void freeFileGracefully(TFile*);
-	void SimpleCopy(cTString&, cTString&);
-	void prepareOutputTree(cTString& outfilename, cTString& target_tree, std::string& leaf_selection);
-	//void getListOfBranchesBySelection(std::vector<TLeaf*>&, TTree* target_tree, std::string& selection);
-
+	void SimpleCopy(const TreeJob&);
+	void prepareOutputTree(TTree*, std::vector<TLeaf*>&);
+	void flatten(const TreeJob&);
+	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
+	                                  TTree* target_tree,
+									  std::string selection);
 
 	void BestPVSelection(const TreeJob& tree_job);
 
 	std::vector<TreeJob> tree_jobs;
 
 	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
-	//TTree *output_tree = nullptr; // Current output tree
 	TString input_filename;
 
-	//// std::vector<std::pair<TString, TString>> keep_trees;
-
-	//std::vector<LeafStore<Float_t>>  float_leaves;
-	//std::vector<LeafStore<Double_t>> double_leaves;
-	//std::vector<LeafStore<Int_t>>    int_leaves;
-	//std::vector<LeafStore<Long_t>>   long_leaves;
-	//std::vector<LeafStore<ULong_t>>  ulong_leaves;
+	std::vector<LeafStore<Float_t>>  float_leaves;
+	std::vector<LeafStore<Double_t>> double_leaves;
+	std::vector<LeafStore<Int_t>>    int_leaves;
+	std::vector<LeafStore<Long_t>>   long_leaves;
+	std::vector<LeafStore<ULong_t>>  ulong_leaves;
 
 	ClassDef(LumberJack,1)
 };

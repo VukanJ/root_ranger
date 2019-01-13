@@ -26,7 +26,6 @@ void LumberJack::freeFileGracefully(TFile* fileptr)
 
 void LumberJack::changeFile(cTString& rootfile)
 {
-    std::cout << "Changing file\n";
     input_filename = rootfile;
 
     freeFileGracefully(inFile);
@@ -49,12 +48,12 @@ void LumberJack::treeCopy(cTString& tree, cTString& rename)
     tree_jobs.push_back({tree,
                          rename == "" ? tree : rename,
                          "", "", "",
-                         Action::simpleCopy});
+                         Action::copytree});
 }
 
 void LumberJack::treeCopySelection(cTString& treename,
-                                   cTString& branch_selection,
-                                   cTString& cut_selection,
+                                   const std::string& branch_selection,
+                                   const std::string& cut_selection,
                                    cTString& rename)
 {
     tree_jobs.push_back({treename,
@@ -62,14 +61,28 @@ void LumberJack::treeCopySelection(cTString& treename,
                          "",
                          branch_selection,
                          cut_selection,
-                         Action::selectionCopy});
+                         Action::copytree});
+}
+
+void LumberJack::flattenTree(cTString& treename,
+                             cTString& array_dimension,
+                             const std::string& branch_selection,
+                             const std::string& cut_selection,
+                             cTString& rename)
+{
+    tree_jobs.push_back({treename,
+                         rename == "" ? treename : rename,
+                         array_dimension,
+                         branch_selection,
+                         cut_selection,
+                         Action::flatten_tree});
 }
 
 void LumberJack::BPVselection(cTString& treename,
                               TString&  array_dimension,
-                              cTString& branch_selection,
-                              cTString& cut_selection,
-                              cTString& rename=TString(""))
+                              const std::string& branch_selection,
+                              const std::string& cut_selection,
+                              cTString& rename)
 {
     tree_jobs.push_back({treename,
                          rename == "" ? treename : rename,
@@ -81,9 +94,38 @@ void LumberJack::BPVselection(cTString& treename,
 
 void LumberJack::dev()
 {
-  for(auto& t : tree_jobs){
-      std::cout << t.name << ' ' << t.newname << ' ' << t.dimension_var << ' ' << t.selection << ' ' << t.action << '\n';
-  }
+    TTree* tree = (TTree*)inFile->Get("inclusive_Jpsi/DecayTree");
+    std::vector<Float_t> mass;
+    std::vector<Float_t> chi2;
+    Int_t NPV;
+    Float_t P;
+    //tree->SetBranchStatus("*", 0);
+
+    mass.reserve(10);
+    chi2.reserve(10);
+
+    tree->SetBranchStatus("*", 0);
+    tree->SetBranchStatus("B0_FitDaughtersConst_M",    1);
+    tree->SetBranchStatus("B0_FitDaughtersConst_nPV",  1);
+    tree->SetBranchStatus("B0_FitDaughtersConst_chi2", 1);
+
+    std::cout << tree->GetLeaf("B0_FitDaughtersConst_M")->GetLeafCount()->GetName() << std::endl;
+
+    tree->SetBranchAddress("B0_FitDaughtersConst_M",    &mass[0]);
+    tree->SetBranchAddress("B0_FitDaughtersConst_chi2", &chi2[0]);
+    tree->SetBranchAddress("B0_FitDaughtersConst_nPV", &NPV);
+
+    std::cout << std::setprecision(10);
+
+    for(int i = 0; i < 100; ++i){
+        tree->GetEntry(i);
+        std::cout << "NPV = " << NPV << '\n';
+        for(int npv = 0; npv < NPV; ++npv) std::cout << "M = " << mass[npv] << ' ';
+        std::cout << '\n';
+        for(int npv = 0; npv < NPV; ++npv) std::cout << "chi2 = " << chi2[npv] << ' ';
+        std::cout << '\n';
+    }
+
 }
 
 void LumberJack::Print() const
@@ -92,18 +134,11 @@ void LumberJack::Print() const
     std::cout << "LumberJack job for " << input_filename << ":\n";
     for(const auto& tree_job : tree_jobs){
         switch(tree_job.action){
-        case Action::simpleCopy:
+        case Action::copytree:
             std::cout << "\t Copy tree:\t" << tree_job.name;
             if(tree_job.newname != ""){
                 std::cout << " --> " << tree_job.newname;
             }
-            break;
-        case Action::selectionCopy:
-            std::cout << "\t Copy tree with selection:\t" << tree_job.name;
-            if(tree_job.newname != ""){
-                std::cout << " --> " << tree_job.newname;
-            }
-
             break;
         case Action::bpv_selection:
             std::cout << "\t Apply BPV selection:\t" << tree_job.name;
@@ -127,113 +162,144 @@ void LumberJack::Run(TString output_filename)
 
     for(const auto& tree_job : tree_jobs){
         switch(tree_job.action){
-        case Action::simpleCopy: SimpleCopy(tree_job.name, tree_job.newname); break;
+        case Action::copytree: SimpleCopy(tree_job); break;
+        case Action::flatten_tree: flatten(tree_job); break;
         default: break;
         }
     }
 }
 
-void LumberJack::SimpleCopy(cTString& tree_in, cTString& tree_out)
+void LumberJack::SimpleCopy(const TreeJob& job)
 {
-    TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_in));
+    // Copy tree with cut selection and branch selection with built in methods
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
+    TTree* output_tree = nullptr;
     input_tree->SetBranchStatus("*", 1);
 
-    TTree* output_tree = input_tree->CloneTree();
+    if(job.cut_selection == ""){
+        output_tree = input_tree->CloneTree();
+    }
+    else {
+        output_tree = input_tree->CopyTree(TString(job.cut_selection));
+    }
+    output_tree->SetTitle(job.newname);
 
     output_tree->Write("", TObject::kOverwrite); // Disable Autosave backups
+    delete output_tree;
+}
+
+void LumberJack::flatten(const TreeJob& job)
+{
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
+    int n_entries = input_tree->GetEntriesFast();
+
+    TTree output_tree(job.newname, job.newname);
+
+    std::vector<TLeaf*> array_leaves;
+    getListOfBranchesBySelection(array_leaves, input_tree, job.branch_selection);
+
+    prepareOutputTree(&output_tree, array_leaves);
+
+    for(int evt = 0; evt < n_entries; ++evt){
+        input_tree->GetEntry(evt);
+        output_tree.Fill();
+    }
+    output_tree.Write("", TObject::kOverwrite);
 }
 
 void LumberJack::BestPVSelection(const TreeJob& tree_job)
 {
-
+    // Loop over tree and copy events to output tree.
+    // If Leaf entries are arrays, select first
 }
 
-void LumberJack::prepareOutputTree(cTString& target_tree, std::string& leaf_selection)
+void LumberJack::prepareOutputTree(TTree* output_tree, std::vector<TLeaf*>& selected_leaves)
 {
-    for(const auto& treename : keep_trees){
-        TTree *input_tree  = static_cast<TTree*>(inFile->Get(treename.first));
-        TTree output_tree(treename.second, treename.second);
-        // Get leaves of input tree
-        std::vector<TLeaf*> selected_leaves;
+    for(const auto& leaf : selected_leaves){
+        std::string leaf_type = leaf->GetTypeName();
+        if(leaf_type == "Float_t"){
+            float_leaves.emplace_back(LeafStore<Float_t>(leaf, FLOAT_LEAF));
+            output_tree->Branch(float_leaves.back().name(), &float_leaves.back(), float_leaves.back().name(true));
 
-        getListOfBranchesBySelection(selected_leaves, input_tree, leaf_selection);
-
-        for(const auto& leaf : selected_leaves){
-            std::string leaf_type = leaf->GetTypeName();
-            if(leaf_type == "Float_t"){
-                float_leaves.emplace_back(LeafStore<Float_t>(leaf, FLOAT_LEAF));
-                output_tree.Branch(float_leaves.back().name(), &float_leaves.back(), float_leaves.back().name(true));
+            std::string K;
+            bool write = false;
+            for(char c : std::string(leaf->GetTitle())){
+                if(c == '['){
+                    write = true;
+                }
+                else if(c == ']') break;
+                else if (write) K += c;
             }
-            else if(leaf_type == "Double_t"){
-                double_leaves.emplace_back(LeafStore<Double_t>(leaf, DOUBLE_LEAF));
-                output_tree.Branch(double_leaves.back().name(), &double_leaves.back(), double_leaves.back().name(true));
-            }
-            else if(leaf_type == "Int_t"){
-                int_leaves.emplace_back(LeafStore<Int_t>(leaf, INT_LEAF));
-                output_tree.Branch(int_leaves.back().name(), &int_leaves.back(), int_leaves.back().name(true));
-            }
-            else if(leaf_type == "Long_t"){
-                long_leaves.emplace_back(LeafStore<Long_t>(leaf, LONG_LEAF));
-                output_tree.Branch(long_leaves.back().name(), &long_leaves.back(), long_leaves.back().name(true));
-            }
-            else if(leaf_type == "ULong_t"){
-                ulong_leaves.emplace_back(LeafStore<ULong_t>(leaf, ULONG_LEAF));
-                output_tree.Branch(ulong_leaves.back().name(), &ulong_leaves.back(), ulong_leaves.back().name(true));
-            }
+            std::cout << K << '\n';
         }
-        output_tree.Write();
-    }
-    for(auto& l : int_leaves){
-        std::cout << l.name(true) << '\n';
+        else if(leaf_type == "Double_t"){
+            std::cout << leaf->GetTitle() << '\n';
+            double_leaves.emplace_back(LeafStore<Double_t>(leaf, DOUBLE_LEAF));
+            output_tree->Branch(double_leaves.back().name(), &double_leaves.back(), double_leaves.back().name(true));
+        }
+        else if(leaf_type == "Int_t"){
+            int_leaves.emplace_back(LeafStore<Int_t>(leaf, INT_LEAF));
+            output_tree->Branch(int_leaves.back().name(), &int_leaves.back(), int_leaves.back().name(true));
+        }
+        else if(leaf_type == "Long_t"){
+            long_leaves.emplace_back(LeafStore<Long_t>(leaf, LONG_LEAF));
+            output_tree->Branch(long_leaves.back().name(), &long_leaves.back(), long_leaves.back().name(true));
+        }
+        else if(leaf_type == "ULong_t"){
+            ulong_leaves.emplace_back(LeafStore<ULong_t>(leaf, ULONG_LEAF));
+            output_tree->Branch(ulong_leaves.back().name(), &ulong_leaves.back(), ulong_leaves.back().name(true));
+        }
     }
 }
 
-//void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string& selection)
-//{
-//    // Collect branches that match regex
-//    TObjArray* leaf_list = target_tree->GetListOfLeaves();
-//    /*
-//
-//    std::string regex_select;
-//
-//    // Remove whitespace
-//    for(auto c = selection.begin(); c != selection.end();){
-//    c = (*c == ' ') ? selection.erase(c) : c + 1;
-//    }
-//    // Build regex
-//    if (selection.empty()){
-//    regex_select = R"(([\w\d_]+))";
-//    }
-//    else {
-//    if (selection.size() >= 2){
-//      if(*selection.begin() == '(' && selection.back() == ')'){ // User entered regex
-//        regex_select = selection;
-//      }
-//      else if (contains(selection, '*')){ // Selected vars by wildcard -> construct regex
-//        regex_select += "^";
-//        for(const auto& s : selection){
-//          regex_select += (s == '*') ? R"([\w\d_]+)" : std::string(1, s);
-//        }
-//        regex_select += "$";
-//      }
-//      else { // Literal variable name -> only one selected
-//        regex_select = "^" + selection + "$";
-//      }
-//    }
-//    }
-//    // Loop over branches, append if regex matches
-//    std::cout << regex_select << '\n';
-//    std::regex re(regex_select);
-//
-//    for(const auto& leaf : *leaf_list){
-//    std::smatch match;
-//    std::cout << leaf->GetName() << '\n';
-//    std::regex_search(std::string(leaf->GetName()), match, re);
-//    //if(match.ready()) std::cout << leaf->GetName() << '\n';
-//    }
-//    */
-//    for(const auto& leaf : *leaf_list){
-//        selected.push_back(static_cast<TLeaf*>(leaf));
-//    }
-//}
-//
+void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string selection)
+{
+    // Collect branches that match regex
+    TObjArray* leaf_list = target_tree->GetListOfLeaves();
+    /*
+
+    std::string regex_select;
+
+    // Remove whitespace
+    for(auto c = selection.begin(); c != selection.end();){
+    c = (*c == ' ') ? selection.erase(c) : c + 1;
+    }
+    // Build regex
+    if (selection.empty()){
+    regex_select = R"(([\w\d_]+))";
+    }
+    else {
+    if (selection.size() >= 2){
+      if(*selection.begin() == '(' && selection.back() == ')'){ // User entered regex
+        regex_select = selection;
+      }
+      else if (contains(selection, '*')){ // Selected vars by wildcard -> construct regex
+        regex_select += "^";
+        for(const auto& s : selection){
+          regex_select += (s == '*') ? R"([\w\d_]+)" : std::string(1, s);
+        }
+        regex_select += "$";
+      }
+      else { // Literal variable name -> only one selected
+        regex_select = "^" + selection + "$";
+      }
+    }
+    }
+    // Loop over branches, append if regex matches
+    std::cout << regex_select << '\n';
+    std::regex re(regex_select);
+
+    for(const auto& leaf : *leaf_list){
+    std::smatch match;
+    std::cout << leaf->GetName() << '\n';
+    std::regex_search(std::string(leaf->GetName()), match, re);
+    //if(match.ready()) std::cout << leaf->GetName() << '\n';
+    }
+    */
+    // Placeholder until I have access to a modern C++ compiler
+    for(const auto& leaf : *leaf_list){
+        if(TString(leaf->GetName()).BeginsWith(TString(selection))){
+            selected.push_back(static_cast<TLeaf*>(leaf));
+        }
+    }
+}
