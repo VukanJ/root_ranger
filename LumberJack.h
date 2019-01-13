@@ -27,45 +27,68 @@ public:
 	LumberJack(cTString& rootfile);
 	virtual ~LumberJack();
 
-	void addTree(cTString&);
 	void changeFile(cTString& rootfile);
 
-	/** BestPVSelection chooses first entry in array variables
-	 * and writes new reduced tree with this selection
-	 *
-	 * tree_name     == Title of TTree where BPV selection should be applied
-	 * dimension_var == Variable that stores the array dimensionality. DecayTreeFitter usually return "nPV"
-	 * outfile_name  == Name of resulting reduced rootfile
-	 * selectVars    == Vars to be kept. Default: All
-	 *                  "XYZ*"   -> All branches that start with XYZ (Full wildcard support)
-	 *                  any number of ellipsis possible
-	 * 				    "(REGEX)" -> vars matched by regex expression REGEX
-	 * var_ending   == new variable ending for selected vars
-	 */
-	void BestPVSelection(cTString& tree_name,
-						 cTString& dimension_var,
-						 cTString& outfile_name,
-						 std::string selectVars="", // Default == all array-like
-						 cTString var_ending=TString("_flat"));
+	void treeCopy(cTString&, cTString& rename=TString(""));
+	
+	void treeCopySelection(cTString& treename,
+	                       cTString& branch_selection,
+						   cTString& cut_selection,
+						   cTString& rename=TString(""));
+
+	void BPVselection(cTString& treename,
+	                  TString&  array_dimension,
+					  cTString& branch_selection,
+					  cTString& cut_selection,
+					  cTString& rename=TString(""));
+
+	void Print() const;
+	void Run(TString output_filename);
 
 	void dev();
 
+	enum Action {
+		simpleCopy,
+		selectionCopy,
+		selection,
+		bpv_selection
+	};
+
+	struct TreeJob {
+		/* Stores old and new name,
+		*  as well as the action that
+		*  should be performed on this tree
+		*/
+		TString name,
+		        newname,
+				dimension_var,
+				branch_selection,
+				cut_selection;
+
+		Action action;
+	};
 private:
 	void freeFileGracefully(TFile*);
-	void prepareInputAndOutputTree(cTString& outfilename, cTString& target_tree, std::string& leaf_selection);
-	void getListOfBranchesBySelection(std::vector<TLeaf*>&, TTree* target_tree, std::string& selection);
+	void SimpleCopy(cTString&, cTString&);
+	void prepareOutputTree(cTString& outfilename, cTString& target_tree, std::string& leaf_selection);
+	//void getListOfBranchesBySelection(std::vector<TLeaf*>&, TTree* target_tree, std::string& selection);
+
+
+	void BestPVSelection(const TreeJob& tree_job);
+
+	std::vector<TreeJob> tree_jobs;
 
 	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
-	TTree *output_tree = nullptr; // Current output tree
-	TString input_filename, dimension_var;
+	//TTree *output_tree = nullptr; // Current output tree
+	TString input_filename;
 
-	std::vector<TString> keep_trees;
+	//// std::vector<std::pair<TString, TString>> keep_trees;
 
-	std::vector<LeafStore<Double_t>> double_leaves;
-	std::vector<LeafStore<Float_t>>  float_leaves;
-	std::vector<LeafStore<Int_t>>    int_leaves;
-	std::vector<LeafStore<Long_t>>   long_leaves;
-	std::vector<LeafStore<ULong_t>>  ulong_leaves;
+	//std::vector<LeafStore<Float_t>>  float_leaves;
+	//std::vector<LeafStore<Double_t>> double_leaves;
+	//std::vector<LeafStore<Int_t>>    int_leaves;
+	//std::vector<LeafStore<Long_t>>   long_leaves;
+	//std::vector<LeafStore<ULong_t>>  ulong_leaves;
 
 	ClassDef(LumberJack,1)
 };

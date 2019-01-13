@@ -5,5 +5,6 @@
 #pragma link C++ nestedclasses;
 
 #pragma link C++ defined_in "LumberJack.h";
+#pragma link C++ defined_in "LeafStore.h";
 
 #endif

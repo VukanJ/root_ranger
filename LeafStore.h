@@ -40,23 +40,39 @@ static const std::array<std::string, 11> DataTypeNames {
 static const std::string DataTypeNamesShort = "BbSsIiFDLlO";
 
 template <typename T>
-struct LeafStore {
-	LeafStore() : data(0), leafptr(nullptr), type(INT_LEAF) { }
-	LeafStore(TLeaf* leaf, LeafType leaf_type) :  data(0), leafptr(leaf), type(leaf_type) { }
+class LeafStore {
+public:
+	LeafStore();
+	LeafStore(TLeaf* leaf, LeafType leaf_type);
 
-	inline T* operator&() noexcept { return &data; }
-	TString name(bool appendType=false){
-		TString leafname = leafptr->GetName();
-		if (appendType){
-			leafname += '/';
-			leafname += DataTypeNamesShort[type];
-		}
-		return leafname;
-	}
+	T* operator&() noexcept;
+	TString name(bool appendType=false);
 
 	T data; // Temporary storage for data
 	const TLeaf* leafptr;
 	const LeafType type;
 };
+
+template<typename T>
+LeafStore<T>::LeafStore() : data(0), leafptr(nullptr), type(INT_LEAF) { }
+
+template<typename T>
+LeafStore<T>::LeafStore(TLeaf* leaf, LeafType leaf_type) : data(0), leafptr(leaf), type(leaf_type) { }
+
+template<typename T>
+T* LeafStore<T>::operator&() noexcept
+{
+	return &data;
+}
+
+template<typename T>
+TString LeafStore<T>::name(bool appendType){
+	TString leafname = leafptr->GetName();
+	if (appendType){
+		leafname += '/';
+		leafname += DataTypeNamesShort[type];
+	}
+	return leafname;
+}
 
 #endif
