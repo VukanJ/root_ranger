@@ -94,38 +94,37 @@ void LumberJack::BPVselection(cTString& treename,
 
 void LumberJack::dev()
 {
+    // This works:
     TTree* tree = (TTree*)inFile->Get("inclusive_Jpsi/DecayTree");
     std::vector<Float_t> mass;
-    std::vector<Float_t> chi2;
     Int_t NPV;
-    Float_t P;
-    //tree->SetBranchStatus("*", 0);
 
-    mass.reserve(10);
-    chi2.reserve(10);
+    mass.reserve(8);
 
     tree->SetBranchStatus("*", 0);
     tree->SetBranchStatus("B0_FitDaughtersConst_M",    1);
     tree->SetBranchStatus("B0_FitDaughtersConst_nPV",  1);
-    tree->SetBranchStatus("B0_FitDaughtersConst_chi2", 1);
-
-    std::cout << tree->GetLeaf("B0_FitDaughtersConst_M")->GetLeafCount()->GetName() << std::endl;
 
     tree->SetBranchAddress("B0_FitDaughtersConst_M",    &mass[0]);
-    tree->SetBranchAddress("B0_FitDaughtersConst_chi2", &chi2[0]);
-    tree->SetBranchAddress("B0_FitDaughtersConst_nPV", &NPV);
+    tree->SetBranchAddress("B0_FitDaughtersConst_nPV",  &NPV);
+
+    TFile* of = TFile::Open("DEV.root", "RECREATE");
+    TTree otree("DecayTree", "DecayTree");
+
+    otree.Branch("B0_FitDaughtersConst_M",  &mass[0]);
+    otree.Branch("B0_FitDaughtersConst_nPV",    &NPV);
 
     std::cout << std::setprecision(10);
 
-    for(int i = 0; i < 100; ++i){
-        tree->GetEntry(i);
-        std::cout << "NPV = " << NPV << '\n';
-        for(int npv = 0; npv < NPV; ++npv) std::cout << "M = " << mass[npv] << ' ';
-        std::cout << '\n';
-        for(int npv = 0; npv < NPV; ++npv) std::cout << "chi2 = " << chi2[npv] << ' ';
-        std::cout << '\n';
-    }
+    Int_t nentries = tree->GetEntriesFast();
 
+    for(int i = 0; i < nentries; ++i){
+        tree->GetEntry(i);
+        otree.Fill();
+    }
+    otree.Write("", TObject::kOverwrite);
+    of->Close();
+    delete of;
 }
 
 void LumberJack::Print() const
@@ -162,8 +161,8 @@ void LumberJack::Run(TString output_filename)
 
     for(const auto& tree_job : tree_jobs){
         switch(tree_job.action){
-        case Action::copytree: SimpleCopy(tree_job); break;
-        case Action::flatten_tree: flatten(tree_job); break;
+        case Action::copytree:      SimpleCopy(tree_job);      break;
+        case Action::flatten_tree:  flatten(tree_job);         break;
         case Action::bpv_selection: BestPVSelection(tree_job); break;
         default: break;
         }
