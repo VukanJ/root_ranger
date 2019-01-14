@@ -2,11 +2,16 @@
 #define LUMBERJACK_H
 
 #include <iostream>
-#include <vector>
-#include <typeinfo>
-#include <string>
 #include <algorithm>
+#include <typeinfo>
+#include <regex>
+#include <vector>
+#include <string>
 #include <iomanip>
+#include <set>
+#include <unordered_set>
+#include <map>
+#include <memory>
 
 #include "TString.h"
 #include "TDirectoryFile.h"
@@ -14,9 +19,6 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TLeaf.h"
-#include "TLeafI.h"
-#include "TLeafF.h"
-#include "TLeafD.h"
 #include "TKey.h"
 
 #include "LeafStore.h"
@@ -38,14 +40,14 @@ public:
 						   cTString& rename=TString(""));
 
 	void flattenTree(cTString& treename,
-					 cTString& array_dimension,
 					 const std::string& branch_selection,
+					 const std::string& additional_branches_selection,
 					 const std::string& cut_selection,
 					 cTString& rename=TString(""));
 
 	void BPVselection(cTString& treename,
-	                  TString&  array_dimension,
 					  const std::string& branch_selection,
+					  const std::string& additional_branches_selection,
 					  const std::string& cut_selection,
 					  cTString& rename=TString(""));
 
@@ -62,22 +64,25 @@ public:
 	};
 
 	struct TreeJob {
-		/* Stores old and new name,
+		/* TreeJob stores old and new name,
 		*  as well as the action that
 		*  should be performed on this tree
+		*  Must be public for ROOT
 		*/
-		TString name,
-		        newname,
-				dimension_var;
+		TString name, newname;
 		std::string branch_selection,
-		            cut_selection;
+		            branch_selection2,
+					cut_selection;
 
 		Action action;
 	};
+
 private:
 	void freeFileGracefully(TFile*);
 	void SimpleCopy(const TreeJob&);
-	void prepareOutputTree(TTree*, std::vector<TLeaf*>&);
+	void analyzeLeaves_FillLeafBuffers(TTree* input_tree,
+	                                   TTree* output_tree,
+									   std::vector<TLeaf*>&);
 	void flatten(const TreeJob&);
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
@@ -88,6 +93,7 @@ private:
 	std::vector<TreeJob> tree_jobs;
 
 	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
+
 	TString input_filename;
 
 	std::vector<LeafStore<Float_t>>  float_leaves;

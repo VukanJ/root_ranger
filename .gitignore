@@ -6,4 +6,4 @@
 *.root
 CMakeFiles/
 CMakeCache.txt
-
+.nfs*

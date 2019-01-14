@@ -8,19 +8,6 @@
 #include "TLeaf.h"
 
 // https://root.cern.ch/doc/v610/classTBranch.html
-enum LeafType {
-	BYTE_LEAF,
-	UBYTE_LEAF,
-	SHORT_LEAF,
-	USHORT_LEAF,
-	INT_LEAF,
-	UINT_LEAF,
-	FLOAT_LEAF,
-	DOUBLE_LEAF,
-	LONG_LEAF,
-	ULONG_LEAF,
-	BOOL_LEAF
-};
 
 // All data types supported by root
 static const std::array<std::string, 11> DataTypeNames {
@@ -48,26 +35,23 @@ template <typename T>
 class LeafStore {
 public:
 	LeafStore();
-	LeafStore(TLeaf* leaf, LeafType leaf_type, size_t length=1);
+	LeafStore(TLeaf* leaf, size_t length=1);
 
 	std::vector<T> buffer; // Temporary buffer containing all array elements
 
 	const TLeaf *leafptr        = nullptr,
 	            *dimension_leaf = nullptr;
-
-	LeafType type;
 };
 
 template<typename T>
 LeafStore<T>::LeafStore()
 {
 	buffer.resize(1);
-	type = INT_LEAF;
 }
 
 template<typename T>
-LeafStore<T>::LeafStore(TLeaf* leaf, LeafType leaf_type, size_t length)
-	: leafptr(leaf), type(leaf_type)
+LeafStore<T>::LeafStore(TLeaf* leaf, size_t length)
+	: leafptr(leaf)
 {
 	dimension_leaf = leafptr->GetLeafCount();
 
