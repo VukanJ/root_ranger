@@ -219,7 +219,7 @@ void LumberJack::prepareOutputTree(TTree* output_tree, std::vector<TLeaf*>& sele
         std::string leaf_type = leaf->GetTypeName();
         if(leaf_type == "Float_t"){
             float_leaves.emplace_back(LeafStore<Float_t>(leaf, FLOAT_LEAF));
-            output_tree->Branch(float_leaves.back().name(), &float_leaves.back(), float_leaves.back().name(true));
+            output_tree->Branch(leaf->GetName(), &float_leaves.back(), leaf->GetTitle());
 
             std::string K;
             bool write = false;
@@ -235,19 +235,19 @@ void LumberJack::prepareOutputTree(TTree* output_tree, std::vector<TLeaf*>& sele
         else if(leaf_type == "Double_t"){
             std::cout << leaf->GetTitle() << '\n';
             double_leaves.emplace_back(LeafStore<Double_t>(leaf, DOUBLE_LEAF));
-            output_tree->Branch(double_leaves.back().name(), &double_leaves.back(), double_leaves.back().name(true));
+            output_tree->Branch(leaf->GetName(), &double_leaves.back(), leaf->GetTitle());
         }
         else if(leaf_type == "Int_t"){
             int_leaves.emplace_back(LeafStore<Int_t>(leaf, INT_LEAF));
-            output_tree->Branch(int_leaves.back().name(), &int_leaves.back(), int_leaves.back().name(true));
+            output_tree->Branch(leaf->GetName(), &int_leaves.back(), leaf->GetTitle());
         }
         else if(leaf_type == "Long_t"){
             long_leaves.emplace_back(LeafStore<Long_t>(leaf, LONG_LEAF));
-            output_tree->Branch(long_leaves.back().name(), &long_leaves.back(), long_leaves.back().name(true));
+            output_tree->Branch(leaf->GetName(), &long_leaves.back(), leaf->GetTitle());
         }
         else if(leaf_type == "ULong_t"){
             ulong_leaves.emplace_back(LeafStore<ULong_t>(leaf, ULONG_LEAF));
-            output_tree->Branch(ulong_leaves.back().name(), &ulong_leaves.back(), ulong_leaves.back().name(true));
+            output_tree->Branch(leaf->GetName(), &ulong_leaves.back(), leaf->GetTitle());
         }
     }
 }

@@ -50,21 +50,19 @@ public:
 	LeafStore();
 	LeafStore(TLeaf* leaf, LeafType leaf_type, size_t length=1);
 
-	T* operator&();
-	TString name(bool appendType=false);
-
 	std::vector<T> buffer; // Temporary buffer containing all array elements
 
 	const TLeaf *leafptr        = nullptr,
 	            *dimension_leaf = nullptr;
 
-	const LeafType type = BYTE_LEAF;
+	LeafType type;
 };
 
 template<typename T>
 LeafStore<T>::LeafStore()
 {
 	buffer.resize(1);
+	type = INT_LEAF;
 }
 
 template<typename T>
@@ -75,28 +73,6 @@ LeafStore<T>::LeafStore(TLeaf* leaf, LeafType leaf_type, size_t length)
 
 	assert(length >= 1);
 	buffer.resize(length);
-}
-
-template<typename T>
-T* LeafStore<T>::operator&()
-{
-	// Address of first data entry. (std::vector data is linearly aligned)
-	return &data[0];
-}
-
-template<typename T>
-TString LeafStore<T>::name(bool appendType){
-	TString leafname = leafptr->GetName();
-	if(dimension_leaf != nullptr){
-		leafname += '[';
-		leafname += dimension_leaf->GetName();
-		leafname += ']';
-	}
-	if (appendType){
-		leafname += '/';
-		leafname += DataTypeNamesShort[type];
-	}
-	return leafname;
 }
 
 #endif

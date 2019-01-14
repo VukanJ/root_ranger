@@ -1,6 +1,6 @@
 CC=g++
 # common use flags and libraries
-CXXFLAGS := -Wall -std=c++11 -Wextra -Woverloaded-virtual -fPIC -W -pipe -ftree-vectorize -Ofast
+CXXFLAGS := -Wall -std=c++17 -Wextra -Woverloaded-virtual -fPIC -W -pipe -ftree-vectorize
 ROOTLIBS  :=  $(shell root-config --libs) -lRooFit -lRooStats -lTreePlayer
 ROOTFLAGS :=  $(shell root-config --cflags)
 
