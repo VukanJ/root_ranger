@@ -47,7 +47,6 @@ public:
 	std::vector<T> buffer; // Temporary buffer containing all array elements
 
 	const TLeaf *leafptr = nullptr;
-
 };
 
 #endif

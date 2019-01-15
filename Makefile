@@ -8,12 +8,12 @@ CXXFLAGS  += $(ROOTFLAGS) $(ROOTLIBS)
 
 LDFLAGS   = -O2 # -Wl
 SOFLAGS   = -shared
-SHLIB    := lumberjack.so
-HDRS     := LeafStore.h LumberJack.h LumberJack_LinkDef.h
+SHLIB    := ranger.so
+HDRS     := LeafStore.h Ranger.h Ranger_LinkDef.h
 COMPILE = $(CC) $(CXXFLAGS) -c
 
 OBJFILES := $(patsubst %.cxx,%.o,$(wildcard *.cxx))
-OBJFILES += lumberjack_dict.o
+OBJFILES += ranger_dict.o
 
 %.o: %.cxx
 	$(CC) $(CXXFLAGS) $(DEBUG) -c $< -o $@
@@ -22,9 +22,9 @@ $(SHLIB): $(OBJFILES) $(INTS) $(HDRS)
 	  /bin/rm -f $(SHLIB)
 	  $(CC) $(SOFLAGS) $(LDFLAGS) $(OBJFILES) -o $(SHLIB)
 
-lumberjack_dict.o:  $(HDRS)
-	rootcint -f lumberjack_dict.cc -c $(HDRS)
-	$(COMPILE) lumberjack_dict.cc -I. -o lumberjack_dict.o
+ranger_dict.o:  $(HDRS)
+	rootcint -f ranger_dict.cc -c $(HDRS)
+	$(COMPILE) ranger_dict.cc -I. -o ranger_dict.o
 
 clean:
 	rm -f *.pcm *.cc *o *.so

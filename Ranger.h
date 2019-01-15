@@ -25,10 +25,10 @@
 
 using cTString = const TString;
 
-class LumberJack {
+class Ranger {
 public:
-	LumberJack(cTString& rootfile);
-	virtual ~LumberJack();
+	Ranger(cTString& rootfile);
+	virtual ~Ranger();
 
 	void changeFile(cTString& rootfile);
 
@@ -71,7 +71,7 @@ public:
 		TString name, newname;
 		std::string branch_selection,
 		            branch_selection2,
-					cut_selection;
+								cut_selection;
 
 		Action action;
 	};
@@ -81,13 +81,14 @@ private:
 	void SimpleCopy(const TreeJob&);
 	void analyzeLeaves_FillLeafBuffers(TTree* input_tree,
 	                                   TTree* output_tree,
-									   std::vector<TLeaf*>&);
-	void flatten(const TreeJob&);
+									   						 		 std::vector<TLeaf*>& all_leaves,
+																	 	 std::vector<TLeaf*>& bpv_leaves);
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
-									  std::string selection);
+									  								std::string selection);
 
-	void BestPVSelection(const TreeJob& tree_job);
+	void flatten(const TreeJob&);
+	void BestPVSelection(const TreeJob&);
 
 	std::vector<TreeJob> tree_jobs;
 
@@ -101,7 +102,7 @@ private:
 	std::vector<LeafStore<Long_t>>   long_leaves;
 	std::vector<LeafStore<ULong_t>>  ulong_leaves;
 
-	ClassDef(LumberJack,1)
+	ClassDef(Ranger,1)
 };
 
 template<typename T>

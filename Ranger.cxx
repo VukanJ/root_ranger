@@ -1,20 +1,20 @@
 #include "Riostream.h"
-#include "LumberJack.h"
+#include "Ranger.h"
 
-LumberJack::LumberJack(cTString& rootfile)
+Ranger::Ranger(cTString& rootfile)
   : input_filename(rootfile)
 {
   TTree::SetMaxTreeSize(1000000000000);
   changeFile(input_filename);
 }
 
-LumberJack::~LumberJack()
+Ranger::~Ranger()
 {
   freeFileGracefully(inFile);
   freeFileGracefully(outFile);
 }
 
-void LumberJack::freeFileGracefully(TFile* fileptr)
+void Ranger::freeFileGracefully(TFile* fileptr)
 {
   if (fileptr != nullptr){
     if(fileptr->IsOpen()){
@@ -24,7 +24,7 @@ void LumberJack::freeFileGracefully(TFile* fileptr)
   }
 }
 
-void LumberJack::changeFile(cTString& rootfile)
+void Ranger::changeFile(cTString& rootfile)
 {
     input_filename = rootfile;
 
@@ -43,7 +43,7 @@ void LumberJack::changeFile(cTString& rootfile)
     }
 }
 
-void LumberJack::treeCopy(cTString& tree, cTString& rename)
+void Ranger::treeCopy(cTString& tree, cTString& rename)
 {
     tree_jobs.push_back({tree,
                          rename == "" ? tree : rename,
@@ -51,7 +51,7 @@ void LumberJack::treeCopy(cTString& tree, cTString& rename)
                          Action::copytree});
 }
 
-void LumberJack::treeCopySelection(cTString& treename,
+void Ranger::treeCopySelection(cTString& treename,
                                    const std::string& branch_selection,
                                    const std::string& cut_selection,
                                    cTString& rename)
@@ -64,7 +64,7 @@ void LumberJack::treeCopySelection(cTString& treename,
                          Action::copytree});
 }
 
-void LumberJack::flattenTree(cTString& treename,
+void Ranger::flattenTree(cTString& treename,
                              const std::string& branches_flat_selection,
                              const std::string& additional_branches_selection,
                              const std::string& cut_selection,
@@ -78,7 +78,7 @@ void LumberJack::flattenTree(cTString& treename,
                          Action::flatten_tree});
 }
 
-void LumberJack::BPVselection(cTString& treename,
+void Ranger::BPVselection(cTString& treename,
                               const std::string& branches_bpv_selection,
                               const std::string& additional_branches_selection,
                               const std::string& cut_selection,
@@ -92,7 +92,7 @@ void LumberJack::BPVselection(cTString& treename,
                          Action::bpv_selection});
 }
 
-void LumberJack::Run(TString output_filename)
+void Ranger::Run(TString output_filename)
 {
     // Runs all previously defined jobs in sequence (tree-wise)
 
@@ -114,7 +114,7 @@ void LumberJack::Run(TString output_filename)
     outFile->Close();
 }
 
-void LumberJack::SimpleCopy(const TreeJob& job)
+void Ranger::SimpleCopy(const TreeJob& job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
     TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
@@ -134,27 +134,12 @@ void LumberJack::SimpleCopy(const TreeJob& job)
     delete output_tree;
 }
 
-void LumberJack::flatten(const TreeJob& job)
+void Ranger::flatten(const TreeJob& job)
 {
-    // NOT READY YET
-    TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
-    int n_entries = input_tree->GetEntriesFast();
 
-    TTree output_tree(job.newname, job.newname);
-
-    std::vector<TLeaf*> array_leaves;
-    getListOfBranchesBySelection(array_leaves, input_tree, job.branch_selection);
-
-    analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, array_leaves);
-
-    for(int evt = 0; evt < n_entries; ++evt){
-        input_tree->GetEntry(evt);
-        output_tree.Fill();
-    }
-    output_tree.Write("", TObject::kOverwrite);
 }
 
-void LumberJack::BestPVSelection(const TreeJob& tree_job)
+void Ranger::BestPVSelection(const TreeJob& tree_job)
 {
     // Loop over tree and copy events into output tree.
     // If TLeaf entries are arrays, select first
@@ -165,25 +150,27 @@ void LumberJack::BestPVSelection(const TreeJob& tree_job)
 
     std::cout << "BPV selection on " << tree_job.name << '\n';
 
-    std::vector<TLeaf*> bpv_leaves, additional_leaves;
+    std::vector<TLeaf*> bpv_leaves, all_leaves;
 
-    getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job.branch_selection);
-    //getListOfBranchesBySelection(additional_leaves, input_tree, tree_job.branch_selection2);
+    getListOfBranchesBySelection(all_leaves, input_tree, tree_job.branch_selection);
+    getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job.branch_selection2);
 
-    analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, bpv_leaves);
+    analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, bpv_leaves);
     //analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, additional_leaves);
 
     int n_entries = input_tree->GetEntriesFast();
 
+    // Event loop
     for(int event = 0; event < n_entries; ++event){
         input_tree->GetEntry(event);
-        std::cout << float_leaves.back().buffer[0] << ' ';
         output_tree.Fill();
     }
-    output_tree.Write("", TObject::kOverwrite);
+    std::cout << "Copy\n";
+    TTree* output_tree_selected = output_tree.CopyTree(TString(tree_job.cut_selection));
+    output_tree_selected->Write("", TObject::kOverwrite);
 }
 
-void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree, std::vector<TLeaf*>& selected_leaves)
+void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree, std::vector<TLeaf*>& all_leaves, std::vector<TLeaf*>& bpv_leaves)
 {
     // Analyzes the selected leaves and finds out their dimensionality
     // Multidimensional leaves are assigned more buffer space according
@@ -193,7 +180,7 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
 
     bool found_const_array = false;
 
-    for (const auto& leaf : selected_leaves) {
+    for (const auto& leaf : all_leaves) {
         std::string leaf_type = leaf->GetTypeName();
 
         size_t buffer_size = 1;
@@ -214,6 +201,11 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
             // Leaf elements are arrays / matrices of variable length
 
             // Get max buffer size if unknown
+            if(!contains(bpv_leaves, leaf)){
+              // Skipping this leaf since its dimension is not aligned with bpv branches
+              // Not sure what to do with these. Ignore for now. Maybe write an extra tree for them
+              continue;
+            }
             if(array_length_leaves.find(dim_leaf) == array_length_leaves.end()){
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
                 array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());
@@ -252,7 +244,7 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
     }
 }
 
-void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string selection)
+void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string selection)
 {
     // Collects leaves that match regex
 
@@ -261,21 +253,21 @@ void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTr
     std::string regex_select;
 
     // Remove whitespace
-    for(auto c = selection.begin(); c != selection.end();){
+    for (auto c = selection.begin(); c != selection.end();) {
         c = (*c == ' ') ? selection.erase(c) : c + 1;
     }
     // Build regex
-    if (selection.empty()){
+    if (selection.empty()) {
         return;
     }
     else {
-        if (selection.size() >= 2){
-            if(*selection.begin() == '(' && selection.back() == ')'){
+        if (selection.size() >= 2) {
+            if(*selection.begin() == '(' && selection.back() == ')') {
                 // User entered regex
                 regex_select = selection;
             }
         }
-        if (regex_select == "" && contains(selection, '*')){
+        if (regex_select == "" && contains(selection, '*')) {
             // Not a regex. Selected vars by wildcard -> construct regex
             regex_select += "^";
             for(const auto& s : selection){
@@ -291,13 +283,11 @@ void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTr
     // Loop over branches, append if regex matches name
     std::regex re(regex_select);
 
-    for(const auto& leaf : *leaf_list){
+    for (const auto& leaf : *leaf_list) {
         std::smatch match;
         std::string leafName = std::string(leaf->GetName()); // required for std::regex_search
-        if(std::regex_match(leafName, re)){
-            //std::cout << leaf->GetName() << '\n';
+        if (std::regex_match(leafName, re)) {
             selected.push_back(static_cast<TLeaf*>(leaf));
         }
     }
-
 }
