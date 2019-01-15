@@ -156,7 +156,6 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
     getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job.branch_selection2);
 
     analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, bpv_leaves);
-    //analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, additional_leaves);
 
     int n_entries = input_tree->GetEntriesFast();
 
@@ -165,9 +164,13 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
         input_tree->GetEntry(event);
         output_tree.Fill();
     }
-    std::cout << "Copy\n";
-    TTree* output_tree_selected = output_tree.CopyTree(TString(tree_job.cut_selection));
-    output_tree_selected->Write("", TObject::kOverwrite);
+    if(!tree_job.cut_selection.empty()){
+      TTree* output_tree_selected = output_tree.CopyTree(TString(tree_job.cut_selection));
+      output_tree_selected->Write("", TObject::kOverwrite);
+    }
+    else {
+      output_tree.Write("", TObject::kOverwrite);
+    }
 }
 
 void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree, std::vector<TLeaf*>& all_leaves, std::vector<TLeaf*>& bpv_leaves)
@@ -182,6 +185,8 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
 
     for (const auto& leaf : all_leaves) {
         std::string leaf_type = leaf->GetTypeName();
+        TString LeafName = leaf->GetName();
+        TString LeafNameAfter = LeafName;
 
         size_t buffer_size = 1;
 
@@ -204,7 +209,11 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
             if(!contains(bpv_leaves, leaf)){
               // Skipping this leaf since its dimension is not aligned with bpv branches
               // Not sure what to do with these. Ignore for now. Maybe write an extra tree for them
+              // std::cout << leaf->GetName() << '\n';
               continue;
+            }
+            else{
+              LeafNameAfter += "_flat";
             }
             if(array_length_leaves.find(dim_leaf) == array_length_leaves.end()){
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
@@ -213,22 +222,22 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
             buffer_size = array_length_leaves[dim_leaf];
         }
 
-        input_tree->SetBranchStatus(leaf->GetName(), 1);
+        input_tree->SetBranchStatus(LeafName, 1);
 
         if(leaf_type == "Float_t"){
             float_leaves.emplace_back(LeafStore<Float_t>(leaf, buffer_size));
-            input_tree->SetBranchAddress(leaf->GetName(), &(float_leaves.back().buffer[0]));
-            output_tree->Branch(leaf->GetName(), &(float_leaves.back().buffer[0]));
+            input_tree->SetBranchAddress(LeafName, &(float_leaves.back().buffer[0]));
+            output_tree->Branch(LeafNameAfter, &(float_leaves.back().buffer[0]));
         }
         else if(leaf_type == "Double_t"){
             double_leaves.emplace_back(LeafStore<Double_t>(leaf, buffer_size));
-            input_tree->SetBranchAddress(leaf->GetName(), &(double_leaves.back().buffer[0]));
-            output_tree->Branch(leaf->GetName(), &(double_leaves.back().buffer[0]));
+            input_tree->SetBranchAddress(LeafName, &(double_leaves.back().buffer[0]));
+            output_tree->Branch(LeafNameAfter, &(double_leaves.back().buffer[0]));
         }
         else if(leaf_type == "Int_t"){
             int_leaves.emplace_back(LeafStore<Int_t>(leaf, buffer_size));
-            input_tree->SetBranchAddress(leaf->GetName(), &(int_leaves.back().buffer[0]));
-            output_tree->Branch(leaf->GetName(), &(int_leaves.back().buffer[0]));
+            input_tree->SetBranchAddress(LeafName, &(int_leaves.back().buffer[0]));
+            output_tree->Branch(LeafNameAfter, &(int_leaves.back().buffer[0]));
         }
     }
 
