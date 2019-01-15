@@ -34,11 +34,11 @@ void LumberJack::changeFile(cTString& rootfile)
 
     // Check whether root file is healthy
     if (!inFile->IsOpen()) {
-      std::cerr << "Cannot open file " + input_filename << '\n';
+      std::cerr << "Error: Cannot open file " + input_filename << '\n';
       exit(1);
     }
     if (inFile->IsZombie()) {
-      std::cerr << "Root file appears to be corrupted -> giving up\n";
+      std::cerr << "Error: Root file appears to be damaged. giving up\n";
       exit(1);
     }
 }
@@ -92,66 +92,10 @@ void LumberJack::BPVselection(cTString& treename,
                          Action::bpv_selection});
 }
 
-void LumberJack::dev()
-{
-    // This works:
-    TTree* tree = (TTree*)inFile->Get("inclusive_Jpsi/DecayTree");
-    std::vector<Float_t> mass;
-    Int_t NPV;
-
-    mass.reserve(8);
-
-    tree->SetBranchStatus("*", 0);
-    tree->SetBranchStatus("B0_FitDaughtersConst_M",    1);
-    tree->SetBranchStatus("B0_FitDaughtersConst_nPV",  1);
-
-    tree->SetBranchAddress("B0_FitDaughtersConst_M",    &mass[0]);
-    tree->SetBranchAddress("B0_FitDaughtersConst_nPV",  &NPV);
-
-    TFile* of = TFile::Open("DEV.root", "RECREATE");
-    TTree otree("DecayTree", "DecayTree");
-
-    otree.Branch("B0_FitDaughtersConst_M",  &mass[0]);
-    otree.Branch("B0_FitDaughtersConst_nPV",    &NPV);
-
-    std::cout << std::setprecision(10);
-
-    Int_t nentries = tree->GetEntriesFast();
-
-    for(int i = 0; i < nentries; ++i){
-        tree->GetEntry(i);
-        otree.Fill();
-    }
-    otree.Write("", TObject::kOverwrite);
-    of->Close();
-    delete of;
-}
-
-void LumberJack::Print() const
-{
-    // Print what LumberJack is about to do if Run() is called
-    std::cout << "LumberJack job for " << input_filename << ":\n";
-    for(const auto& tree_job : tree_jobs){
-        switch(tree_job.action){
-        case Action::copytree:
-            std::cout << "\t Copy tree:\t" << tree_job.name;
-            if(tree_job.newname != ""){
-                std::cout << " --> " << tree_job.newname;
-            }
-            break;
-        case Action::bpv_selection:
-            std::cout << "\t Apply BPV selection:\t" << tree_job.name;
-            if(tree_job.newname != ""){
-                std::cout << " --> " << tree_job.newname;
-            }
-            break;
-        }
-        std::cout << '\n';
-    }
-}
-
 void LumberJack::Run(TString output_filename)
 {
+    // Runs all previously defined jobs in sequence (tree-wise)
+
     // Create output file
     if(!output_filename.EndsWith(".root")){
         output_filename += ".root";
@@ -167,11 +111,12 @@ void LumberJack::Run(TString output_filename)
         default: break;
         }
     }
+    outFile->Close();
 }
 
 void LumberJack::SimpleCopy(const TreeJob& job)
 {
-    // Copy tree with cut selection and branch selection with built in methods
+    // Copy tree with cut selection and branch selection using built-in methods
     TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
     TTree* output_tree = nullptr;
     input_tree->SetBranchStatus("*", 1);
@@ -211,8 +156,8 @@ void LumberJack::flatten(const TreeJob& job)
 
 void LumberJack::BestPVSelection(const TreeJob& tree_job)
 {
-    // Loop over tree and copy events to output tree.
-    // If Leaf entries are arrays, select first
+    // Loop over tree and copy events into output tree.
+    // If TLeaf entries are arrays, select first
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job.name));
     TTree  output_tree(tree_job.newname, tree_job.newname);
 
@@ -230,11 +175,12 @@ void LumberJack::BestPVSelection(const TreeJob& tree_job)
 
     int n_entries = input_tree->GetEntriesFast();
 
-    for(int event = 0; event < 10; ++event){
+    for(int event = 0; event < n_entries; ++event){
         input_tree->GetEntry(event);
+        std::cout << float_leaves.back().buffer[0] << ' ';
         output_tree.Fill();
     }
-    output_tree.Write();
+    output_tree.Write("", TObject::kOverwrite);
 }
 
 void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree, std::vector<TLeaf*>& selected_leaves)
@@ -260,7 +206,8 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
             if (probe > 1) {
                 // Leaf elements are arrays / matrices of constant length > 1
                 found_const_array = true;
-            } // else probe = 1 ->scalar
+            }
+            // else probe = 1 ->scalar
             buffer_size = probe;
         }
         else {
@@ -269,7 +216,7 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
             // Get max buffer size if unknown
             if(array_length_leaves.find(dim_leaf) == array_length_leaves.end()){
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
-                array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());;
+                array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());
             }
             buffer_size = array_length_leaves[dim_leaf];
         }
@@ -277,16 +224,19 @@ void LumberJack::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_
         input_tree->SetBranchStatus(leaf->GetName(), 1);
 
         if(leaf_type == "Float_t"){
-            float_leaves.emplace_back(LeafStore<Float_t>(leaf));
-            output_tree->Branch(leaf->GetName(), &(float_leaves.back().buffer[0]), leaf->GetTitle(), buffer_size);
+            float_leaves.emplace_back(LeafStore<Float_t>(leaf, buffer_size));
+            input_tree->SetBranchAddress(leaf->GetName(), &(float_leaves.back().buffer[0]));
+            output_tree->Branch(leaf->GetName(), &(float_leaves.back().buffer[0]));
         }
         else if(leaf_type == "Double_t"){
-            double_leaves.emplace_back(LeafStore<Double_t>(leaf));
-            output_tree->Branch(leaf->GetName(), &(double_leaves.back().buffer[0]), leaf->GetTitle(), buffer_size);
+            double_leaves.emplace_back(LeafStore<Double_t>(leaf, buffer_size));
+            input_tree->SetBranchAddress(leaf->GetName(), &(double_leaves.back().buffer[0]));
+            output_tree->Branch(leaf->GetName(), &(double_leaves.back().buffer[0]));
         }
         else if(leaf_type == "Int_t"){
-            int_leaves.emplace_back(LeafStore<Int_t>(leaf));
-            output_tree->Branch(leaf->GetName(), &(int_leaves.back().buffer[0]), leaf->GetTitle(), buffer_size);
+            int_leaves.emplace_back(LeafStore<Int_t>(leaf, buffer_size));
+            input_tree->SetBranchAddress(leaf->GetName(), &(int_leaves.back().buffer[0]));
+            output_tree->Branch(leaf->GetName(), &(int_leaves.back().buffer[0]));
         }
     }
 
@@ -316,7 +266,7 @@ void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTr
     }
     // Build regex
     if (selection.empty()){
-        regex_select = R"([\w\d_]+)";
+        return;
     }
     else {
         if (selection.size() >= 2){
@@ -334,18 +284,18 @@ void LumberJack::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTr
             regex_select += "$";
         }
         else {
-            // Literal variable name -> only one varieble selected
+            // Literal variable name -> only one variable can be selected
             regex_select = "^" + selection + "$";
         }
     }
-    // Loop over branches, append if regex matches
-    std::cout << regex_select << '\n';
+    // Loop over branches, append if regex matches name
     std::regex re(regex_select);
 
     for(const auto& leaf : *leaf_list){
         std::smatch match;
         std::string leafName = std::string(leaf->GetName()); // required for std::regex_search
         if(std::regex_match(leafName, re)){
+            //std::cout << leaf->GetName() << '\n';
             selected.push_back(static_cast<TLeaf*>(leaf));
         }
     }

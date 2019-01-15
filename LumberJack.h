@@ -51,7 +51,6 @@ public:
 					  const std::string& cut_selection,
 					  cTString& rename=TString(""));
 
-	void Print() const;
 	void Run(TString output_filename);
 
 	void dev();

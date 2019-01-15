@@ -28,35 +28,26 @@ static const std::string DataTypeNamesShort = "BbSsIiFDLlO";
 
 /* LeafStore: Class providing data buffer addresses for the event loop.
 *  Since Leaves may contain arrays, the data buffers are stored as a vector
-*  max_size=
 */
 
 template <typename T>
 class LeafStore {
 public:
-	LeafStore();
-	LeafStore(TLeaf* leaf, size_t length=1);
+	LeafStore()
+	{
+		buffer.reserve(1);
+	}
+
+	LeafStore(TLeaf* leaf, size_t length) : leafptr(leaf)
+	{
+		assert(length >= 1);
+		buffer.reserve(length);
+	}
 
 	std::vector<T> buffer; // Temporary buffer containing all array elements
 
-	const TLeaf *leafptr        = nullptr,
-	            *dimension_leaf = nullptr;
+	const TLeaf *leafptr = nullptr;
+
 };
-
-template<typename T>
-LeafStore<T>::LeafStore()
-{
-	buffer.resize(1);
-}
-
-template<typename T>
-LeafStore<T>::LeafStore(TLeaf* leaf, size_t length)
-	: leafptr(leaf)
-{
-	dimension_leaf = leafptr->GetLeafCount();
-
-	assert(length >= 1);
-	buffer.resize(length);
-}
 
 #endif
