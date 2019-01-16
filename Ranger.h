@@ -18,38 +18,32 @@
 #include "RooArgList.h"
 #include "TFile.h"
 #include "TTree.h"
+#include "TFormula.h"
 #include "TLeaf.h"
 #include "TKey.h"
 
 #include "LeafStore.h"
 
-using cTString = const TString;
-
 class Ranger {
 public:
-	Ranger(cTString& rootfile);
+	Ranger(const TString& rootfile);
 	virtual ~Ranger();
+	
+	void changeFile(const std::string& rootfile);
 
-	void changeFile(cTString& rootfile);
+	void treeCopy(const std::string& treename,
+	              const std::string& branch_selection="",
+				  const std::string& cut_selection="",
+				  const std::string& rename="");
 
-	void treeCopy(cTString&, cTString& rename=TString(""));
 
-	void treeCopySelection(cTString& treename,
-	                       const std::string& branch_selection,
-						   const std::string& cut_selection,
-						   cTString& rename=TString(""));
-
-	void flattenTree(cTString& treename,
-					 const std::string& branch_selection,
-					 const std::string& additional_branches_selection,
-					 const std::string& cut_selection,
-					 cTString& rename=TString(""));
-
-	void BPVselection(cTString& treename,
+	void BPVselection(const std::string& treename,
 					  const std::string& branch_selection,
-					  const std::string& additional_branches_selection,
-					  const std::string& cut_selection,
-					  cTString& rename=TString(""));
+					  const std::string& bpv_branch_selection,
+					  const std::string& cut_selection="",
+					  const std::string& rename="");
+
+	void addFormula(const TString& name, std::string formula);
 
 	void Run(TString output_filename);
 
@@ -59,20 +53,22 @@ public:
 		copytree,
 		selection,
 		flatten_tree,
-		bpv_selection
+		bpv_selection,
+		add_formula
 	};
 
 	struct TreeJob {
-		/* TreeJob stores old and new name,
-		*  as well as the action that
-		*  should be performed on this tree
+		/* TreeJob stores everything Ranger needs to
+		*  know about an operation performed on a tree
 		*  Must be public for ROOT
 		*/
-		TString name, newname;
-		std::string branch_selection,
-		            branch_selection2,
-								cut_selection;
-
+		std::string inline operator[](const std::string& key) const {
+			return opt.find(key)->second;
+		}
+		TString inline operator()(const std::string& key) const {
+			return TString(opt.find(key)->second);
+		}
+		std::map<std::string, std::string> opt;
 		Action action;
 	};
 
@@ -81,20 +77,24 @@ private:
 	void SimpleCopy(const TreeJob&);
 	void analyzeLeaves_FillLeafBuffers(TTree* input_tree,
 	                                   TTree* output_tree,
-									   						 		 std::vector<TLeaf*>& all_leaves,
-																	 	 std::vector<TLeaf*>& bpv_leaves);
+									   std::vector<TLeaf*>& all_leaves,
+									   std::vector<TLeaf*>& bpv_leaves);
+
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
-									  								std::string selection);
+									  std::string selection);
 
 	void flatten(const TreeJob&);
 	void BestPVSelection(const TreeJob&);
+	/*
+	void addFormulaBranch(const FormulaJob&);
+	*/
 
 	std::vector<TreeJob> tree_jobs;
 
 	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
 
-	TString input_filename;
+	std::string input_filename;
 
 	std::vector<LeafStore<Float_t>>  float_leaves;
 	std::vector<LeafStore<Double_t>> double_leaves;

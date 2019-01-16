@@ -1,7 +1,7 @@
 #include "Riostream.h"
 #include "Ranger.h"
 
-Ranger::Ranger(cTString& rootfile)
+Ranger::Ranger(const TString& rootfile)
   : input_filename(rootfile)
 {
   TTree::SetMaxTreeSize(1000000000000);
@@ -24,13 +24,13 @@ void Ranger::freeFileGracefully(TFile* fileptr)
   }
 }
 
-void Ranger::changeFile(cTString& rootfile)
+void Ranger::changeFile(const std::string& rootfile)
 {
     input_filename = rootfile;
 
     freeFileGracefully(inFile);
 
-    inFile = TFile::Open(rootfile, "READ");
+    inFile = TFile::Open(TString(rootfile), "READ");
 
     // Check whether root file is healthy
     if (!inFile->IsOpen()) {
@@ -43,55 +43,53 @@ void Ranger::changeFile(cTString& rootfile)
     }
 }
 
-void Ranger::treeCopy(cTString& tree, cTString& rename)
+void Ranger::treeCopy(const std::string& tree_in,
+                      const std::string& branch_selection,
+                      const std::string& cut_selection,
+                      const std::string& tree_out)
 {
-    tree_jobs.push_back({tree,
-                         rename == "" ? tree : rename,
-                         "", "", "",
-                         Action::copytree});
+    tree_jobs.push_back({
+        {{"tree_in",          tree_in}, 
+         {"tree_out",         tree_out == "" ? tree_in : tree_out},
+         {"branch_selection", branch_selection},
+         {"cut",              cut_selection}}, 
+        Action::copytree});
 }
 
-void Ranger::treeCopySelection(cTString& treename,
-                                   const std::string& branch_selection,
-                                   const std::string& cut_selection,
-                                   cTString& rename)
+void Ranger::BPVselection(const std::string& tree_in,
+					      const std::string& branch_selection,
+					      const std::string& bpv_branch_selection,
+					      const std::string& cut_selection,
+					      const std::string& tree_out)
 {
-    tree_jobs.push_back({treename,
-                         rename == "" ? treename : rename,
-                         branch_selection,
-                         "",
-                         cut_selection,
-                         Action::copytree});
+    tree_jobs.push_back({
+        {{"tree_in",              tree_in}, 
+         {"tree_out",             tree_out == "" ? tree_in : tree_out},
+         {"branch_selection",     branch_selection},
+         {"bpv_branch_selection", bpv_branch_selection},
+         {"cut",                  cut_selection}}, 
+        Action::bpv_selection});
 }
 
-void Ranger::flattenTree(cTString& treename,
-                             const std::string& branches_flat_selection,
-                             const std::string& additional_branches_selection,
-                             const std::string& cut_selection,
-                             cTString& rename)
+/*
+void Ranger::addFormula(const TString& name, std::string formula)
 {
-    tree_jobs.push_back({treename,
-                         rename == "" ? treename : rename,
-                         branches_flat_selection,
-                         additional_branches_selection,
-                         cut_selection,
-                         Action::flatten_tree});
+  if(tree_jobs.empty()){
+    std::cerr << "Error: Need a previous tree job for adding a formula branch!\n";
+    return;
+  }
+
+  tree_jobs.emplace_back(FormulaJob(tree_jobs.back().name,
+                                    tree_jobs.back().newname,
+                                    name, formula));
 }
 
-void Ranger::BPVselection(cTString& treename,
-                              const std::string& branches_bpv_selection,
-                              const std::string& additional_branches_selection,
-                              const std::string& cut_selection,
-                              cTString& rename)
+void Ranger::dev()
 {
-    tree_jobs.push_back({treename,
-                         rename == "" ? treename : rename,
-                         branches_bpv_selection,
-                         additional_branches_selection,
-                         cut_selection,
-                         Action::bpv_selection});
+  //addFormula("DecayTree", "(#B0_PX-#B0_PY)/(#B0_PX+#B0_PY)", "DecayTree");
+  //Run("DTTSelFormula.root");
 }
-
+*/
 void Ranger::Run(TString output_filename)
 {
     // Runs all previously defined jobs in sequence (tree-wise)
@@ -103,11 +101,12 @@ void Ranger::Run(TString output_filename)
     freeFileGracefully(outFile);
     outFile = TFile::Open(output_filename, "RECREATE");
 
-    for(const auto& tree_job : tree_jobs){
+    for(auto& tree_job : tree_jobs){
         switch(tree_job.action){
-        case Action::copytree:      SimpleCopy(tree_job);      break;
-        case Action::flatten_tree:  flatten(tree_job);         break;
-        case Action::bpv_selection: BestPVSelection(tree_job); break;
+        case Action::copytree:      SimpleCopy(tree_job);       break;
+        //case Action::flatten_tree:  flatten(tree_job);          break;
+        //case Action::bpv_selection: BestPVSelection(tree_job);  break;
+        //case Action::add_formula:   addFormulaBranch(tree_job); break;
         default: break;
         }
     }
@@ -117,18 +116,18 @@ void Ranger::Run(TString output_filename)
 void Ranger::SimpleCopy(const TreeJob& job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
-    TTree* input_tree = static_cast<TTree*>(inFile->Get(job.name));
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(TString(job["tree_in"])));
     TTree* output_tree = nullptr;
     input_tree->SetBranchStatus("*", 1);
 
-    if(job.cut_selection == ""){
+    if(job["cut"] == ""){
         //output_tree = input_tree->CloneTree(-1, "fast"); // must be tested
         output_tree = input_tree->CloneTree();
     }
     else {
-        output_tree = input_tree->CopyTree(TString(job.cut_selection));
+        output_tree = input_tree->CopyTree(TString(job["cut"]));
     }
-    output_tree->SetTitle(job.newname);
+    output_tree->SetTitle(TString(job["tree_out"]));
 
     output_tree->Write("", TObject::kOverwrite); // Disable Autosave backups
     delete output_tree;
@@ -143,30 +142,31 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
 {
     // Loop over tree and copy events into output tree.
     // If TLeaf entries are arrays, select first
-    TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job.name));
-    TTree  output_tree(tree_job.newname, tree_job.newname);
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree  output_tree(tree_job("tree_out"), tree_job("tree_out"));
 
     input_tree->SetBranchStatus("*", 0);
 
-    std::cout << "BPV selection on " << tree_job.name << '\n';
+    std::cout << "BPV selection on " << tree_job["tree_in"] << '\n';
 
-    std::vector<TLeaf*> bpv_leaves, all_leaves;
+    std::vector<TLeaf*> all_leaves, bpv_leaves;
 
-    getListOfBranchesBySelection(all_leaves, input_tree, tree_job.branch_selection);
-    getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job.branch_selection2);
+    getListOfBranchesBySelection(all_leaves, input_tree, tree_job["branch_selection"]);
+    getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job["bpv_branch_selection"]);
 
     analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, bpv_leaves);
 
     int n_entries = input_tree->GetEntriesFast();
 
     // Event loop
-    for(int event = 0; event < n_entries; ++event){
+    for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
         output_tree.Fill();
     }
-    if(!tree_job.cut_selection.empty()){
-      TTree* output_tree_selected = output_tree.CopyTree(TString(tree_job.cut_selection));
-      output_tree_selected->Write("", TObject::kOverwrite);
+    if (!tree_job["cut"].empty()) {
+        //Create intermediate tree for copying with selection
+        TTree* output_tree_selected = output_tree.CopyTree(tree_job("cut"));
+        output_tree_selected->Write("", TObject::kOverwrite);
     }
     else {
       output_tree.Write("", TObject::kOverwrite);
@@ -256,7 +256,6 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
 void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* target_tree, std::string selection)
 {
     // Collects leaves that match regex
-
     TObjArray* leaf_list = target_tree->GetListOfLeaves();
 
     std::string regex_select;
@@ -300,3 +299,73 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
         }
     }
 }
+
+/*
+void Ranger::addFormulaBranch(const FormulaJob& formula_job)
+{
+  TTree* input_tree   = static_cast<TTree*>(inFile->Get(tree_job.name));
+  TTree* output_tree  = static_cast<TTree*>(outFile->Get(tree_job.newname));
+  std::string formula = formula_job.formula; // Name does not really fit here ...
+  std::string formula_name = TString(formula_job.name);
+
+  std::regex var_search(R"(\#[\w_][\w\d_]*)");
+
+  std::set<std::string> variables;
+
+  std::sregex_iterator iter(formula.begin(), formula.end(), var_search);
+  std::sregex_iterator end;
+
+  // Extract variables
+  for(; iter != end; ++iter){
+    variables.insert(iter->str());
+  }
+  std::vector<Double_t> buffer(variables.size());
+
+  Double_t result;
+  TBranch* formula_branch = output_tree->Branch(formula_name, &result);
+
+  int idx = 0;
+  for(std::string var : variables) {
+    std::cout << var << '\n';
+    formula = std::regex_replace(formula, std::regex(var), std::string("[") + std::to_string(idx) + "]");
+    std::cout << formula << '\n';
+    var.erase(var.begin()); // Remove '#'
+    input_tree->SetBranchStatus(TString(var), 1);
+    input_tree->SetBranchAddress(TString(var), &buffer[idx]);
+    ++idx;
+  }
+
+  TFormula tformula("F", TString(formula));
+  tformula.Print();
+
+  int n_entries = input_tree->GetEntriesFast();
+  for(int event = 0; event < n_entries; ++event){
+    input_tree->GetEntry(event);
+    result = tformula.EvalPar(nullptr, &buffer[0]);
+    formula_branch->Fill();
+  }
+  return;
+}
+*/
+
+/* RENE BRUN
+void upd()
+{
+    TFile *f = new TFile("hs.root","update");
+    TTree *T = (TTree*)f->Get("ntuple");
+    float px,py;
+    float pt;
+    TBranch *bpt = T->Branch("pt",&pt,"pt/F");
+    T->SetBranchAddress("px",&px);
+    T->SetBranchAddress("py",&py);
+    Long64_t nentries = T->GetEntries();
+    for (Long64_t i=0;i<nentries;i++) {
+        T->GetEntry(i);
+        pt = TMath::Sqrt(px*px+py*py);
+        bpt->Fill();
+    }
+    T->Print();
+    T->Write();
+    delete f;
+}
+*/
