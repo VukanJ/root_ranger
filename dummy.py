@@ -1,16 +1,14 @@
 import ROOT as R
 from ROOT import gSystem
 gSystem.Load("ranger.so")
+print("START")
 
-ranger = R.Ranger("DTTSel.root")
+ranger = R.Ranger("../test/0/DTT.root")
 
-#lj.flattenTree("inclusive_Jpsi/DecayTree", "B0_Fit*", "")
+ranger.treeCopy("inclusive_Jpsi/DecayTree", "B0_P*", "", "DecayTree")
+#ranger.addFormula("MomentumAsymmetry", "(#B0_PX-#B0_PY)/(#B0_PX+#B0_PY)");
 
-#ranger.BPVselection("inclusive_Jpsi/DecayTree", "*", "B0_Fit*", "", "DecayTree")
-
-ranger.treeCopySelection("inclusive_Jpsi/DecayTree", "(B0_P[XY])", "", "DecayTree")
-ranger.addFormula("MomentumAsymmetry", "(#B0_PX-#B0_PY)/(#B0_PX+#B0_PY)");
-
-#ranger.Run("DTTSel.root")
+print("RUN")
+ranger.Run("DTTSel.root")
 
 #ranger.dev()

@@ -31,6 +31,7 @@ public:
 	
 	void changeFile(const std::string& rootfile);
 
+	// Tree job parser methods
 	void treeCopy(const std::string& treename,
 	              const std::string& branch_selection="",
 				  const std::string& cut_selection="",
@@ -43,8 +44,9 @@ public:
 					  const std::string& cut_selection="",
 					  const std::string& rename="");
 
-	void addFormula(const TString& name, std::string formula);
+	void addFormula(const std::string& name, std::string formula);
 
+	// Runs all specified Ranger jobs in sequence
 	void Run(TString output_filename);
 
 	void dev();
@@ -59,7 +61,7 @@ public:
 
 	struct TreeJob {
 		/* TreeJob stores everything Ranger needs to
-		*  know about an operation performed on a tree
+		*  know about an operation performed on a single tree
 		*  Must be public for ROOT
 		*/
 		std::string inline operator[](const std::string& key) const {
@@ -86,9 +88,7 @@ private:
 
 	void flatten(const TreeJob&);
 	void BestPVSelection(const TreeJob&);
-	/*
-	void addFormulaBranch(const FormulaJob&);
-	*/
+	void addFormulaBranch(const TreeJob&);
 
 	std::vector<TreeJob> tree_jobs;
 

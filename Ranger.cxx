@@ -54,6 +54,9 @@ void Ranger::treeCopy(const std::string& tree_in,
          {"branch_selection", branch_selection},
          {"cut",              cut_selection}}, 
         Action::copytree});
+    for(const auto& b : tree_jobs.back().opt){
+        std::cout << b.first << ' ' << b.second << '\n';
+    }
 }
 
 void Ranger::BPVselection(const std::string& tree_in,
@@ -71,17 +74,18 @@ void Ranger::BPVselection(const std::string& tree_in,
         Action::bpv_selection});
 }
 
-/*
-void Ranger::addFormula(const TString& name, std::string formula)
+void Ranger::addFormula(const std::string& name, std::string formula)
 {
-  if(tree_jobs.empty()){
-    std::cerr << "Error: Need a previous tree job for adding a formula branch!\n";
-    return;
-  }
-
-  tree_jobs.emplace_back(FormulaJob(tree_jobs.back().name,
-                                    tree_jobs.back().newname,
-                                    name, formula));
+    if(tree_jobs.empty()){
+        std::cerr << "Error: Need a previous tree job for adding a formula branch! Skipping\n";
+        return;
+    }
+    tree_jobs.push_back({
+        {{"tree_in",     tree_jobs.back()["tree_in"]}, 
+         {"tree_out",    tree_jobs.back()["tree_out"]},
+         {"formula",     formula},
+         {"branch_name", name}}, 
+        Action::bpv_selection});
 }
 
 void Ranger::dev()
@@ -89,7 +93,6 @@ void Ranger::dev()
   //addFormula("DecayTree", "(#B0_PX-#B0_PY)/(#B0_PX+#B0_PY)", "DecayTree");
   //Run("DTTSelFormula.root");
 }
-*/
 void Ranger::Run(TString output_filename)
 {
     // Runs all previously defined jobs in sequence (tree-wise)
@@ -105,35 +108,46 @@ void Ranger::Run(TString output_filename)
         switch(tree_job.action){
         case Action::copytree:      SimpleCopy(tree_job);       break;
         //case Action::flatten_tree:  flatten(tree_job);          break;
-        //case Action::bpv_selection: BestPVSelection(tree_job);  break;
-        //case Action::add_formula:   addFormulaBranch(tree_job); break;
+        case Action::bpv_selection: BestPVSelection(tree_job);  break;
+        case Action::add_formula:   addFormulaBranch(tree_job); break;
         default: break;
         }
     }
     outFile->Close();
 }
 
-void Ranger::SimpleCopy(const TreeJob& job)
+void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
-    TTree* input_tree = static_cast<TTree*>(inFile->Get(TString(job["tree_in"])));
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(TString(tree_job["tree_in"])));
     TTree* output_tree = nullptr;
-    input_tree->SetBranchStatus("*", 1);
 
-    if(job["cut"] == ""){
+    if(!tree_job["branch_selection"].empty()){
+        input_tree->SetBranchStatus("*", 0);
+        std::vector<TLeaf*> activate_leaves;
+        getListOfBranchesBySelection(activate_leaves, input_tree, tree_job["branch_selection"]);
+        for(const auto& leaf : activate_leaves){
+            input_tree->SetBranchStatus(leaf->GetName(), 1);
+        }
+    }
+    else{
+        input_tree->SetBranchStatus("*", 1);
+    }
+
+    if(tree_job["cut"] == ""){
         //output_tree = input_tree->CloneTree(-1, "fast"); // must be tested
         output_tree = input_tree->CloneTree();
     }
     else {
-        output_tree = input_tree->CopyTree(TString(job["cut"]));
+        output_tree = input_tree->CopyTree(TString(tree_job["cut"]));
     }
-    output_tree->SetTitle(TString(job["tree_out"]));
+    output_tree->SetTitle(TString(tree_job["tree_out"]));
 
     output_tree->Write("", TObject::kOverwrite); // Disable Autosave backups
     delete output_tree;
 }
 
-void Ranger::flatten(const TreeJob& job)
+void Ranger::flatten(const TreeJob&)
 {
 
 }
@@ -300,53 +314,50 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
     }
 }
 
-/*
-void Ranger::addFormulaBranch(const FormulaJob& formula_job)
+void Ranger::addFormulaBranch(const TreeJob& tree_job)
 {
-  TTree* input_tree   = static_cast<TTree*>(inFile->Get(tree_job.name));
-  TTree* output_tree  = static_cast<TTree*>(outFile->Get(tree_job.newname));
-  std::string formula = formula_job.formula; // Name does not really fit here ...
-  std::string formula_name = TString(formula_job.name);
+    TTree* input_tree        = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree* output_tree       = static_cast<TTree*>(outFile->Get(tree_job("tree_out")));
+    std::string formula      = tree_job["formula"]; // Name does not really fit here ...
 
-  std::regex var_search(R"(\#[\w_][\w\d_]*)");
+    std::regex var_search(R"(\#[\w_][\w\d_]*)");
 
-  std::set<std::string> variables;
+    std::set<std::string> variables;
 
-  std::sregex_iterator iter(formula.begin(), formula.end(), var_search);
-  std::sregex_iterator end;
+    std::sregex_iterator iter(formula.begin(), formula.end(), var_search);
+    std::sregex_iterator end;
 
-  // Extract variables
-  for(; iter != end; ++iter){
-    variables.insert(iter->str());
-  }
-  std::vector<Double_t> buffer(variables.size());
+    // Extract variables
+    for(; iter != end; ++iter){
+        variables.insert(iter->str());
+    }
+    std::vector<Double_t> buffer(variables.size());
 
-  Double_t result;
-  TBranch* formula_branch = output_tree->Branch(formula_name, &result);
+    Double_t result;
+    TBranch* formula_branch = output_tree->Branch(tree_job("name"), &result);
 
-  int idx = 0;
-  for(std::string var : variables) {
-    std::cout << var << '\n';
-    formula = std::regex_replace(formula, std::regex(var), std::string("[") + std::to_string(idx) + "]");
-    std::cout << formula << '\n';
-    var.erase(var.begin()); // Remove '#'
-    input_tree->SetBranchStatus(TString(var), 1);
-    input_tree->SetBranchAddress(TString(var), &buffer[idx]);
-    ++idx;
-  }
+    int idx = 0;
+    for(std::string var : variables) {
+        std::cout << var << '\n';
+        formula = std::regex_replace(formula, std::regex(var), std::string("[") + std::to_string(idx) + "]");
+        std::cout << formula << '\n';
+        var.erase(var.begin()); // Remove '#'
+        input_tree->SetBranchStatus(TString(var), 1);
+        input_tree->SetBranchAddress(TString(var), &buffer[idx]);
+        ++idx;
+    }
 
-  TFormula tformula("F", TString(formula));
-  tformula.Print();
+    TFormula tformula("F", TString(formula));
+    tformula.Print();
 
-  int n_entries = input_tree->GetEntriesFast();
-  for(int event = 0; event < n_entries; ++event){
-    input_tree->GetEntry(event);
-    result = tformula.EvalPar(nullptr, &buffer[0]);
-    formula_branch->Fill();
-  }
-  return;
+    int n_entries = input_tree->GetEntriesFast();
+    for(int event = 0; event < n_entries; ++event){
+        input_tree->GetEntry(event);
+        result = tformula.EvalPar(nullptr, &buffer[0]);
+        formula_branch->Fill();
+    }
+    
 }
-*/
 
 /* RENE BRUN
 void upd()
