@@ -18,8 +18,8 @@ Ranger::~Ranger()
 
 void Ranger::freeFileGracefully(TFile* fileptr)
 {
-  if (fileptr != nullptr){
-    if(fileptr->IsOpen()){
+  if (fileptr != nullptr) {
+    if (fileptr->IsOpen()) {
       fileptr->Close();
     }
     delete fileptr;
@@ -75,13 +75,12 @@ void Ranger::BPVselection(const std::string& tree_in,
 
 void Ranger::addFormula(const std::string& name, std::string formula)
 {
-    if(tree_jobs.empty()){
+    if (tree_jobs.empty()) {
         std::cerr << "Error: Need a previous tree job for adding a formula branch! Skipping\n";
         return;
     }
     tree_jobs.push_back({
-        {{"tree_in",     tree_jobs.back()["tree_in"]}, 
-         {"tree_out",    tree_jobs.back()["tree_out"]},
+        {{"tree_out",    tree_jobs.back()["tree_out"]},
          {"formula",     formula},
          {"branch_name", name}}, 
         Action::add_formula});
@@ -97,14 +96,14 @@ void Ranger::Run(TString output_filename)
     // Runs all previously defined jobs in sequence (tree-wise)
 
     // Create output file
-    if(!output_filename.EndsWith(".root")){
+    if (!output_filename.EndsWith(".root")) {
         output_filename += ".root";
     }
     freeFileGracefully(outFile);
     outFile = TFile::Open(output_filename, "RECREATE");
 
-    for(auto& tree_job : tree_jobs){
-        switch(tree_job.action){
+    for (auto& tree_job : tree_jobs) {
+        switch (tree_job.action) {
         case Action::copytree:      SimpleCopy(tree_job);       break;
         //case Action::flatten_tree:  flatten(tree_job);          break;
         case Action::bpv_selection: BestPVSelection(tree_job);  break;
@@ -125,7 +124,7 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
         input_tree->SetBranchStatus("*", 0);
         std::vector<TLeaf*> activate_leaves;
         getListOfBranchesBySelection(activate_leaves, input_tree, tree_job["branch_selection"]);
-        for(const auto& leaf : activate_leaves){
+        for (const auto& leaf : activate_leaves) {
             input_tree->SetBranchStatus(leaf->GetName(), 1);
         }
     }
@@ -218,16 +217,16 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
             // Leaf elements are arrays / matrices of variable length
 
             // Get max buffer size if unknown
-            if(!contains(bpv_leaves, leaf)){
+            if (!contains(bpv_leaves, leaf)) {
               // Skipping this leaf since its dimension is not aligned with bpv branches
               // Not sure what to do with these. Ignore for now. Maybe write an extra tree for them
               // std::cout << leaf->GetName() << '\n';
               continue;
             }
-            else{
+            else {
               LeafNameAfter += "_flat";
             }
-            if(array_length_leaves.find(dim_leaf) == array_length_leaves.end()){
+            if (array_length_leaves.find(dim_leaf) == array_length_leaves.end()) {
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
                 array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());
             }
@@ -236,29 +235,29 @@ void Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree
 
         input_tree->SetBranchStatus(LeafName, 1);
 
-        if(leaf_type == "Float_t"){
+        if (leaf_type == "Float_t") {
             float_leaves.emplace_back(LeafStore<Float_t>(leaf, buffer_size));
             input_tree->SetBranchAddress(LeafName, &(float_leaves.back().buffer[0]));
             output_tree->Branch(LeafNameAfter, &(float_leaves.back().buffer[0]));
         }
-        else if(leaf_type == "Double_t"){
+        else if (leaf_type == "Double_t") {
             double_leaves.emplace_back(LeafStore<Double_t>(leaf, buffer_size));
             input_tree->SetBranchAddress(LeafName, &(double_leaves.back().buffer[0]));
             output_tree->Branch(LeafNameAfter, &(double_leaves.back().buffer[0]));
         }
-        else if(leaf_type == "Int_t"){
+        else if (leaf_type == "Int_t") {
             int_leaves.emplace_back(LeafStore<Int_t>(leaf, buffer_size));
             input_tree->SetBranchAddress(LeafName, &(int_leaves.back().buffer[0]));
             output_tree->Branch(LeafNameAfter, &(int_leaves.back().buffer[0]));
         }
     }
 
-    if(array_length_leaves.size() > 1){
+    if (array_length_leaves.size() > 1) {
         std::cout << "More than one array length leaf found:\n";
-        for(auto& arl : array_length_leaves){
+        for (auto& arl : array_length_leaves) {
             std::cout << arl.first->GetName() << '\n';
         }
-        if(found_const_array){
+        if (found_const_array) {
             std::cout << "Alignment leaves and constant array found. Will not select const arrays\n";
         }
         std::cout << "Testing alignment... (not implemented)\n";
@@ -282,7 +281,7 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
     }
     else {
         if (selection.size() >= 2) {
-            if(*selection.begin() == '(' && selection.back() == ')') {
+            if (*selection.begin() == '(' && selection.back() == ')') {
                 // User entered regex
                 regex_select = selection;
             }
@@ -290,7 +289,7 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
         if (regex_select == "" && contains(selection, '*')) {
             // Not a regex. Selected vars by wildcard -> construct regex
             regex_select += "^";
-            for(const auto& s : selection){
+            for (const auto& s : selection) {
                 regex_select += (s == '*') ? R"([\w\d_]+)" : std::string(1, s);
             }
             regex_select += "$";
@@ -314,7 +313,6 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
 
 void Ranger::addFormulaBranch(const TreeJob& tree_job)
 {
-    TTree* input_tree   = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
     TTree* output_tree  = static_cast<TTree*>(outFile->Get(tree_job("tree_out")));
     std::string formula = tree_job["formula"]; // Name does not really fit here ...
 
@@ -345,7 +343,6 @@ void Ranger::addFormulaBranch(const TreeJob& tree_job)
     }
 
     TFormula tformula("F", TString(formula));
-    tformula.Print();
 
     int n_entries = output_tree->GetEntriesFast();
     for (int event = 0; event < n_entries; ++event) {
