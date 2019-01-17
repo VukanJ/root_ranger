@@ -49,6 +49,9 @@ public:
 	// Runs all specified Ranger jobs in sequence
 	void Run(TString output_filename);
 
+	// Reset Ranger jobs
+	void clear();
+
 	void dev();
 
 	enum Action {

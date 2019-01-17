@@ -110,8 +110,26 @@ void Ranger::Run(TString output_filename)
         case Action::add_formula:   addFormulaBranch(tree_job); break;
         default: break;
         }
+        // Clear buffers
+        float_leaves.clear();
+	    double_leaves.clear();
+	    int_leaves.clear();
+	    long_leaves.clear();
+	    ulong_leaves.clear();
     }
     outFile->Close();
+}
+
+void Ranger::clear()
+{
+    // Resets jobs and buffers
+    tree_jobs.clear();
+
+    float_leaves.clear();
+	double_leaves.clear();
+	int_leaves.clear();
+	long_leaves.clear();
+	ulong_leaves.clear();
 }
 
 void Ranger::SimpleCopy(const TreeJob& tree_job)
