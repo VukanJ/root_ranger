@@ -27,16 +27,27 @@ void Ranger::closeFile(TFile* fileptr)
 
 void Ranger::clearBuffers()
 {
-    leaf_buffers_B.clear();
-    leaf_buffers_b.clear();
-    leaf_buffers_S.clear();
-    leaf_buffers_s.clear();
-    leaf_buffers_I.clear();
-    leaf_buffers_i.clear();
-    leaf_buffers_F.clear();
-    leaf_buffers_D.clear();
-    leaf_buffers_L.clear();
-    leaf_buffers_l.clear();
+    leaf_buffers_B.first.clear();
+    leaf_buffers_b.first.clear();
+    leaf_buffers_S.first.clear();
+    leaf_buffers_s.first.clear();
+    leaf_buffers_I.first.clear();
+    leaf_buffers_i.first.clear();
+    leaf_buffers_F.first.clear();
+    leaf_buffers_D.first.clear();
+    leaf_buffers_L.first.clear();
+    leaf_buffers_l.first.clear();
+
+    leaf_buffers_B.second.clear();
+    leaf_buffers_b.second.clear();
+    leaf_buffers_S.second.clear();
+    leaf_buffers_s.second.clear();
+    leaf_buffers_I.second.clear();
+    leaf_buffers_i.second.clear();
+    leaf_buffers_F.second.clear();
+    leaf_buffers_D.second.clear();
+    leaf_buffers_L.second.clear();
+    leaf_buffers_l.second.clear();
 }
 
 void Ranger::changeFile(const std::string& rootfile)
@@ -140,6 +151,7 @@ void Ranger::Run(TString output_filename)
         }
         clearBuffers();
     }
+    std::cout << "Run finished!\n";
     outFile->Close();
 }
 
@@ -193,14 +205,24 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 
     getListOfBranchesBySelection(all_leaves, input_tree,  tree_job["branch_selection"]);
     getListOfBranchesBySelection(flat_leaves, input_tree, tree_job["flat_branch_selection"]);
-
+    
+    std::cout << "ALL\n"; 
+    for (auto& l : all_leaves) {
+        std::cout << l->GetName() << '\n';
+    }
+    std::cout << "FLAT\n"; 
+    for (auto& l : flat_leaves) {
+        std::cout << l->GetName() << '\n';
+    }
+    //exit(0);
     TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, flat_leaves);
+    std::cout << "He's a lumberjack\n";
     
     // array_length represents array dimension of each element
-    int array_length = 1;
+    int max_array_length = -1;
     input_tree->SetBranchStatus(array_length_leaf->GetName(), 1);
-    input_tree->SetBranchAddress(array_length_leaf->GetName(), &array_length);
-
+    input_tree->SetBranchAddress(array_length_leaf->GetName(), &max_array_length);
+    //exit(0);
     // Create new branch containing the current array index of each event
     int array_elem_it = 0;
     output_tree.Branch("array_length", &array_elem_it, "array_length/i");
@@ -209,14 +231,22 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 
     // Event loop
     for (int event = 0; event < n_entries; ++event) {
+        std::cout << "EVENT " << event << ' ' << max_array_length << '\n';
         input_tree->GetEntry(event);
         // Update all leaves
         output_tree.Fill(); // Element 0
 
-        for (array_elem_it = 1; array_elem_it < array_length; ++array_elem_it) {
-            //for (auto& leaf : leaf_buffers){
-            //    leaf->increment(arr_elem);
-            //}
+        for (array_elem_it = 1; array_elem_it < max_array_length; ++array_elem_it) {
+            //incrementBuffer<Char_t>(array_elem_it);
+            //incrementBuffer<UChar_t>(array_elem_it);
+            //incrementBuffer<Short_t>(array_elem_it);
+            //incrementBuffer<UShort_t>(array_elem_it);
+            incrementBuffer<Int_t>(array_elem_it);
+            incrementBuffer<UInt_t>(array_elem_it);
+            incrementBuffer<Double_t>(array_elem_it);
+            incrementBuffer<Float_t>(array_elem_it);
+            //incrementBuffer<Long64_t>(array_elem_it);
+            //incrementBuffer<ULong64_t>(array_elem_it);
             output_tree.Fill();
         }
     }
@@ -282,8 +312,8 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         TString LeafName = leaf->GetName();
         TString LeafNameAfter = LeafName;
 
+        bool assign_bufferindex = false;
         size_t buffer_size = 1;
-        bool has_alignment = false;
 
         // Find out leaf dimension
         Int_t probe;
@@ -309,7 +339,8 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
             }
             else {
               LeafNameAfter += "_flat";
-              has_alignment = true;
+              //std::cout << LeafName << '\n';
+              assign_bufferindex = true;
             }
             if (array_length_leaves.find(dim_leaf) == array_length_leaves.end()) {
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
@@ -327,16 +358,16 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         input_tree->SetBranchStatus(LeafName, 1);
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
-        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
-	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
         }
     }
 
@@ -354,7 +385,6 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
 {
     // Collects leaves that match regex
     TObjArray* leaf_list = target_tree->GetListOfLeaves();
-
     std::string regex_select;
 
     // Remove whitespace
@@ -387,6 +417,8 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
     }
     // Loop over branches, append if regex matches name
     std::regex re(regex_select);
+
+     std::cout << "SELECTION " << regex_select << '\n';
 
     for (const auto& leaf : *leaf_list) {
         std::smatch match;

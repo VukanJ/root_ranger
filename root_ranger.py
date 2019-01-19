@@ -1,5 +1,5 @@
-from ROOT import gSystem
 import ROOT
+from ROOT import gSystem
 gSystem.Load("ranger.so")
 
 class Ranger:
@@ -20,7 +20,7 @@ class Ranger:
                                   dest)
     
     def bpv_selection(self, treename, bpv_branches, branches="*",  cut="", dest=""):
-        self.__ranger.FlattenTree(treename,
+        self.__ranger.BPVselection(treename,
                                   self.__extend_selection(branches),
                                   self.__extend_selection(bpv_branches),
                                   self.__extend_selection(cut),

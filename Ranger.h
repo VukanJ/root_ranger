@@ -22,6 +22,8 @@
 #include "LeafBuffer.h"
 
 using FilePtr = std::unique_ptr<TFile>;
+template<typename L>
+using Buffer = std::pair<std::vector<LeafBuffer<L>>, std::vector<int>>;
 
 class Ranger {
 public:
@@ -90,15 +92,20 @@ private:
 									     std::vector<TLeaf*>& all_leaves,
 									     std::vector<TLeaf*>& bpv_leaves);
     
+	template<typename L> Buffer<L>* getBuffer();
+
     template<typename L>
     void addLeaf(TString& name_before, TString& name_after,
-				 TTree* tree_in, TTree* tree_out, 
-				 size_t buffer_size, bool align);
+				 TTree* tree_in, TTree* tree_out,
+				 size_t buffer_size, bool assign_index);
+	
+	template<typename L>
+	void inline incrementBuffer(int inc);
 
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
 									  std::string selection);
-
+	
 	// Actual tree operations
 	void SimpleCopy(const TreeJob&);
 	void flattenTree(const TreeJob&);
@@ -111,19 +118,35 @@ private:
 
 	std::string input_filename;
 
-    std::vector<LeafBuffer<Char_t>>    leaf_buffers_B;
-    std::vector<LeafBuffer<UChar_t>>   leaf_buffers_b;
-    std::vector<LeafBuffer<Short_t>>   leaf_buffers_S;
-    std::vector<LeafBuffer<UShort_t>>  leaf_buffers_s;
-    std::vector<LeafBuffer<Int_t>>     leaf_buffers_I;
-    std::vector<LeafBuffer<UInt_t>>    leaf_buffers_i;
-    std::vector<LeafBuffer<Float_t>>   leaf_buffers_F;
-    std::vector<LeafBuffer<Double_t>>  leaf_buffers_D;
-    std::vector<LeafBuffer<Long64_t>>  leaf_buffers_L;
-    std::vector<LeafBuffer<ULong64_t>> leaf_buffers_l;
+	// Leaf buffer storage with indices of array-type leaves
+    Buffer<Char_t>    leaf_buffers_B;
+    Buffer<UChar_t>   leaf_buffers_b;
+    Buffer<Short_t>   leaf_buffers_S;
+    Buffer<UShort_t>  leaf_buffers_s;
+    Buffer<Int_t>     leaf_buffers_I;
+    Buffer<UInt_t>    leaf_buffers_i;
+    Buffer<Float_t>   leaf_buffers_F;
+    Buffer<Double_t>  leaf_buffers_D;
+    Buffer<Long64_t>  leaf_buffers_L;
+    Buffer<ULong64_t> leaf_buffers_l;
 
 	ClassDef(Ranger,1)
 };
+
+template<typename L> 
+Buffer<L>* Ranger::getBuffer()
+{
+	if constexpr (std::is_same<L, UChar_t>::value)   return &leaf_buffers_b;
+	if constexpr (std::is_same<L, Short_t>::value)   return &leaf_buffers_S;
+	if constexpr (std::is_same<L, UShort_t>::value)  return &leaf_buffers_s;
+	if constexpr (std::is_same<L, Int_t>::value)     return &leaf_buffers_I;
+	if constexpr (std::is_same<L, UInt_t>::value)    return &leaf_buffers_i;
+	if constexpr (std::is_same<L, Float_t>::value)   return &leaf_buffers_F;
+	if constexpr (std::is_same<L, Double_t>::value)  return &leaf_buffers_D;
+	if constexpr (std::is_same<L, Long64_t>::value)  return &leaf_buffers_L;
+	if constexpr (std::is_same<L, ULong64_t>::value) return &leaf_buffers_l;
+	return nullptr; // Impossible
+}
 
 template<typename L> 
 void Ranger::addLeaf(TString& name_before,
@@ -131,25 +154,27 @@ void Ranger::addLeaf(TString& name_before,
 					 TTree* tree_in,
 					 TTree* tree_out,
 					 size_t buffer_size,
-					 bool alignment)
+					 bool assign_index)
 {
-	std::vector<LeafBuffer<L>>* lb_vec;
+	Buffer<L>* lb_vec = getBuffer<L>();
+	// Create leaf store, link addresses
+	if (assign_index) {
+		//std::cout << name_before << " gets " << lb_vec->first.size() << '\n';
+		lb_vec->second.push_back(lb_vec->first.size());
+	}
+    lb_vec->first.emplace_back(std::move(LeafBuffer<L>(buffer_size)));
 
-	if constexpr (std::is_same<L, Char_t>::value)    lb_vec = &leaf_buffers_B; 
-	if constexpr (std::is_same<L, UChar_t>::value)   lb_vec = &leaf_buffers_b;
-	if constexpr (std::is_same<L, Short_t>::value)   lb_vec = &leaf_buffers_S;
-	if constexpr (std::is_same<L, UShort_t>::value)  lb_vec = &leaf_buffers_s;
-	if constexpr (std::is_same<L, Int_t>::value)     lb_vec = &leaf_buffers_I;
-	if constexpr (std::is_same<L, UInt_t>::value)    lb_vec = &leaf_buffers_i;
-	if constexpr (std::is_same<L, Float_t>::value)   lb_vec = &leaf_buffers_F;
-	if constexpr (std::is_same<L, Double_t>::value)  lb_vec = &leaf_buffers_D;
-	if constexpr (std::is_same<L, Long64_t>::value)  lb_vec = &leaf_buffers_L;
-	if constexpr (std::is_same<L, ULong64_t>::value) lb_vec = &leaf_buffers_l;
-	
-    lb_vec->emplace_back(std::move(LeafBuffer<L>(buffer_size, alignment)));
+    tree_in->SetBranchAddress(name_before, &(lb_vec->first.back().buffer[0]));
+    tree_out->Branch(name_after,           &(lb_vec->first.back().buffer[0]));
+}
 
-    tree_in->SetBranchAddress(name_before, &(lb_vec->back().buffer[0]));
-    tree_out->Branch(name_after,           &(lb_vec->back().buffer[0]));
+template<typename L>
+void inline Ranger::incrementBuffer(int inc)
+{
+	Buffer<L>* buffer = getBuffer<L>();
+	for (auto& leaf_idx : buffer->second) {
+        buffer->first[leaf_idx].increment(inc);
+    }
 }
 
 template<typename T>

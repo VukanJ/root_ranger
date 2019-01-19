@@ -2,10 +2,8 @@
 #define LEAFSTORE_H
 
 #include <vector>
-#include <array>
+#include <map>
 #include <string>
-
-#include "TLeaf.h"
 
 // https://root.cern.ch/doc/v610/classTBranch.html
 
@@ -50,8 +48,7 @@ public:
         buffer.reserve(1);
     }
 
-    LeafBuffer(size_t length, bool align) 
-        : length(length), has_alignment_leaf(align) 
+    LeafBuffer(size_t length)
     { 
         assert (length >= 1);
         buffer.reserve(length);
@@ -64,8 +61,6 @@ public:
     }
 
     std::vector<T> buffer;  // Temporary buffer containing all array elements
-    size_t length;          // Maximum array length of this leaf
-    bool has_alignment_leaf = false; // True if Leaf has array elements and shall be flattened
 };
 
 #endif
