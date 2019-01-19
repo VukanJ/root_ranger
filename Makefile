@@ -1,12 +1,12 @@
 CC=g++
 # common use flags and libraries
-CXXFLAGS := -Wall -std=c++17 -Wextra -Woverloaded-virtual -fPIC -W -pipe -O0 -ftree-vectorize 
+CXXFLAGS := -Wall -std=c++17 -Wextra -Woverloaded-virtual -fPIC -W -pipe -Ofast -ftree-vectorize 
 ROOTLIBS  :=  $(shell root-config --libs) -lRooFit -lRooStats -lTreePlayer
 ROOTFLAGS :=  $(shell root-config --cflags)
 
 CXXFLAGS  += $(ROOTFLAGS) $(ROOTLIBS)
 
-LDFLAGS   = -O2 # -Wl
+LDFLAGS   = -O3 # -Wl
 SOFLAGS   = -shared
 SHLIB    := ranger.so
 HDRS     := LeafBuffer.h Ranger.h Ranger_LinkDef.h

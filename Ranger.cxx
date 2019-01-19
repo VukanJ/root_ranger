@@ -60,11 +60,11 @@ void Ranger::changeFile(const std::string& rootfile)
 
     // Check whether root file is healthy
     if (!inFile->IsOpen()) {
-      std::cerr << "Error: Cannot open file " + input_filename << '\n';
+      std::cerr << "\033[91m[ERROR]\033[0m Cannot open file " + input_filename << '\n';
       exit(1);
     }
     if (inFile->IsZombie()) {
-      std::cerr << "Error: Root file appears to be damaged. giving up\n";
+      std::cerr << "\033[91m[ERROR]\033[0m Root file appears to be damaged. giving up!\n";
       exit(1);
     }
     clearBuffers();
@@ -206,17 +206,7 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     getListOfBranchesBySelection(all_leaves, input_tree,  tree_job["branch_selection"]);
     getListOfBranchesBySelection(flat_leaves, input_tree, tree_job["flat_branch_selection"]);
     
-    std::cout << "ALL\n"; 
-    for (auto& l : all_leaves) {
-        std::cout << l->GetName() << '\n';
-    }
-    std::cout << "FLAT\n"; 
-    for (auto& l : flat_leaves) {
-        std::cout << l->GetName() << '\n';
-    }
-    //exit(0);
     TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, flat_leaves);
-    std::cout << "He's a lumberjack\n";
     
     // array_length represents array dimension of each element
     int max_array_length = -1;
@@ -231,24 +221,27 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 
     // Event loop
     for (int event = 0; event < n_entries; ++event) {
-        std::cout << "EVENT " << event << ' ' << max_array_length << '\n';
         input_tree->GetEntry(event);
+        //std::cout << "EVENT " << event << ' ' << max_array_length << ' ';
         // Update all leaves
         output_tree.Fill(); // Element 0
 
         for (array_elem_it = 1; array_elem_it < max_array_length; ++array_elem_it) {
-            //incrementBuffer<Char_t>(array_elem_it);
-            //incrementBuffer<UChar_t>(array_elem_it);
-            //incrementBuffer<Short_t>(array_elem_it);
-            //incrementBuffer<UShort_t>(array_elem_it);
+            // go to next array element
+            //std::cout << '@';
+            incrementBuffer<Char_t>(array_elem_it);
+            incrementBuffer<UChar_t>(array_elem_it);
+            incrementBuffer<Short_t>(array_elem_it);
+            incrementBuffer<UShort_t>(array_elem_it);
             incrementBuffer<Int_t>(array_elem_it);
             incrementBuffer<UInt_t>(array_elem_it);
             incrementBuffer<Double_t>(array_elem_it);
             incrementBuffer<Float_t>(array_elem_it);
-            //incrementBuffer<Long64_t>(array_elem_it);
-            //incrementBuffer<ULong64_t>(array_elem_it);
+            incrementBuffer<Long64_t>(array_elem_it);
+            incrementBuffer<ULong64_t>(array_elem_it);
             output_tree.Fill();
         }
+        //std::cout << '\n';
     }
     if (!tree_job["cut"].empty()) {
         //Create intermediate tree for copying with selection
@@ -372,11 +365,11 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
     }
 
     if (array_length_leaves.size() > 1) {
-        std::cout << "[WARNING] More than one array length leaf found:\n";
+        std::cout << "\033[93m[WARNING]\033[0m More than one array length leaf found:\n";
         for (auto& arl : array_length_leaves) {
             std::cout << arl.first->GetName() << '\n';
         }
-        std::cout << "[WARNING] Using " << array_length_leaves.begin()->first->GetName() << " leaf for alignment. Make sure this is intended\n";
+        std::cout << "\033[93m[WARNING]\033[0m Using " << array_length_leaves.begin()->first->GetName() << " leaf for alignment. Make sure this is intended\n";
     }
     return array_length_leaves.begin()->first;
 }

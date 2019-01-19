@@ -136,6 +136,7 @@ private:
 template<typename L> 
 Buffer<L>* Ranger::getBuffer()
 {
+	if constexpr (std::is_same<L, Char_t>::value)    return &leaf_buffers_B;
 	if constexpr (std::is_same<L, UChar_t>::value)   return &leaf_buffers_b;
 	if constexpr (std::is_same<L, Short_t>::value)   return &leaf_buffers_S;
 	if constexpr (std::is_same<L, UShort_t>::value)  return &leaf_buffers_s;
