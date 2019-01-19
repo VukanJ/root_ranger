@@ -14,15 +14,15 @@
 #include <memory>
 
 #include "TString.h"
-#include "TDirectoryFile.h"
-#include "RooArgList.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TFormula.h"
 #include "TLeaf.h"
-#include "TKey.h"
 
 #include "LeafStore.h"
+
+using TreePtr = std::unique_ptr<TTree>;
+using FilePtr = std::unique_ptr<TFile>;
 
 class Ranger {
 public:
@@ -32,11 +32,17 @@ public:
 	void changeFile(const std::string& rootfile);
 
 	// Tree job parser methods
-	void treeCopy(const std::string& treename,
+	void TreeCopy(const std::string& treename,
 	              const std::string& branch_selection="",
 				  const std::string& cut_selection="",
 				  const std::string& rename="");
 
+
+    void FlattenTree(const std::string& treename,
+					 const std::string& branch_selection,
+					 const std::string& flat_branch_selection,
+					 const std::string& cut_selection="",
+					 const std::string& rename="");
 
 	void BPVselection(const std::string& treename,
 					  const std::string& branch_selection,
@@ -78,35 +84,49 @@ public:
 	};
 
 private:
-	void freeFileGracefully(TFile*);
+	void closeFile(TFile*);
 	void SimpleCopy(const TreeJob&);
-	void analyzeLeaves_FillLeafBuffers(TTree* input_tree,
-	                                   TTree* output_tree,
-									   std::vector<TLeaf*>& all_leaves,
-									   std::vector<TLeaf*>& bpv_leaves);
+	TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree,
+									     std::vector<TLeaf*>& all_leaves,
+									     std::vector<TLeaf*>& bpv_leaves);
+    
+    template<typename L>
+    void addLeaf(TString& name_before, TString& name_after, size_t len);
 
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
 									  std::string selection);
 
-	void flatten(const TreeJob&);
+	void flattenTree(const TreeJob&);
 	void BestPVSelection(const TreeJob&);
 	void addFormulaBranch(const TreeJob&);
 
 	std::vector<TreeJob> tree_jobs;
 
-	TFile *inFile = nullptr, *outFile = nullptr; // * = ROOT tradition
+	FilePtr inFile, outFile; 
+
+    TTree* input_tree;
+	TreePtr output_tree;
 
 	std::string input_filename;
 
-	std::vector<LeafStore<Float_t>>  float_leaves;
-	std::vector<LeafStore<Double_t>> double_leaves;
-	std::vector<LeafStore<Int_t>>    int_leaves;
-	std::vector<LeafStore<Long_t>>   long_leaves;
-	std::vector<LeafStore<ULong_t>>  ulong_leaves;
+    std::vector<LeafBufferVar> leaf_buffers;
+    // memorize which leaves need to be flattened (array increment)
+    std::map<std::string, std::vector<int>> update_flat_leaves; 
 
 	ClassDef(Ranger,1)
 };
+
+template<typename L> 
+void Ranger::addLeaf(TString& name_before, TString& name_after, size_t buffer_size)
+{
+    leaf_buffers.emplace_back(std::move(LeafBuffer<L>(buffer_size)));
+
+	auto lb = std::get_if<LeafBuffer<L>>(&leaf_buffers.back());
+
+    input_tree->SetBranchAddress(name_before, &(lb->buffer[0]));
+    output_tree->Branch(name_after,           &(lb->buffer[0]));
+}
 
 template<typename T>
 bool inline contains(const std::vector<T>& vec, const T& elem)
