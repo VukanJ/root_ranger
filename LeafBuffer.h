@@ -45,20 +45,27 @@ static const std::string DataTypeNamesShort = "BbSsIiFDLlO";
 template<typename T>
 class LeafBuffer {
 public:
-    LeafBuffer() {
+    LeafBuffer() 
+    {
         buffer.reserve(1);
     }
-    LeafBuffer(size_t length) : length(length) { 
+
+    LeafBuffer(size_t length, bool align) 
+        : length(length), has_alignment_leaf(align) 
+    { 
         assert (length >= 1);
         buffer.reserve(length);
     }
-    void increment(int offset) { 
+    
+    void inline increment(int offset) { 
         // Move next element to address &buffer[0] from where
         // the next element is read from when flattening arrays
         buffer[0] = buffer[offset]; 
     }
-    std::vector<T> buffer; // Temporary buffer containing all array elements
-    size_t length;         // Maximum array length of this leaf
+
+    std::vector<T> buffer;  // Temporary buffer containing all array elements
+    size_t length;          // Maximum array length of this leaf
+    bool has_alignment_leaf = false; // True if Leaf has array elements and shall be flattened
 };
 
 #endif

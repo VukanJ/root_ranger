@@ -85,13 +85,15 @@ public:
 private:
 	// Utility methods
 	void closeFile(TFile*);
+	void clearBuffers();
 	TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
 									     std::vector<TLeaf*>& all_leaves,
 									     std::vector<TLeaf*>& bpv_leaves);
     
     template<typename L>
     void addLeaf(TString& name_before, TString& name_after,
-				 TTree* tree_in, TTree* tree_out, size_t buffer_size);
+				 TTree* tree_in, TTree* tree_out, 
+				 size_t buffer_size, bool align);
 
 	void getListOfBranchesBySelection(std::vector<TLeaf*>&,
 	                                  TTree* target_tree,
@@ -120,9 +122,6 @@ private:
     std::vector<LeafBuffer<Long64_t>>  leaf_buffers_L;
     std::vector<LeafBuffer<ULong64_t>> leaf_buffers_l;
 
-    // memorize which leaves need to be flattened (array increment)
-    std::map<std::string, std::vector<int>> update_flat_leaves; 
-
 	ClassDef(Ranger,1)
 };
 
@@ -131,7 +130,8 @@ void Ranger::addLeaf(TString& name_before,
                      TString& name_after,
 					 TTree* tree_in,
 					 TTree* tree_out,
-					 size_t buffer_size)
+					 size_t buffer_size,
+					 bool alignment)
 {
 	std::vector<LeafBuffer<L>>* lb_vec;
 
@@ -146,7 +146,7 @@ void Ranger::addLeaf(TString& name_before,
 	if constexpr (std::is_same<L, Long64_t>::value)  lb_vec = &leaf_buffers_L;
 	if constexpr (std::is_same<L, ULong64_t>::value) lb_vec = &leaf_buffers_l;
 	
-    lb_vec->emplace_back(std::move(LeafBuffer<L>(buffer_size)));
+    lb_vec->emplace_back(std::move(LeafBuffer<L>(buffer_size, alignment)));
 
     tree_in->SetBranchAddress(name_before, &(lb_vec->back().buffer[0]));
     tree_out->Branch(name_after,           &(lb_vec->back().buffer[0]));

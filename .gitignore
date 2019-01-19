@@ -7,3 +7,5 @@
 CMakeFiles/
 CMakeCache.txt
 .nfs*
+__pycache__
+*.pyc

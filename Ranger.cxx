@@ -25,6 +25,20 @@ void Ranger::closeFile(TFile* fileptr)
   }
 }
 
+void Ranger::clearBuffers()
+{
+    leaf_buffers_B.clear();
+    leaf_buffers_b.clear();
+    leaf_buffers_S.clear();
+    leaf_buffers_s.clear();
+    leaf_buffers_I.clear();
+    leaf_buffers_i.clear();
+    leaf_buffers_F.clear();
+    leaf_buffers_D.clear();
+    leaf_buffers_L.clear();
+    leaf_buffers_l.clear();
+}
+
 void Ranger::changeFile(const std::string& rootfile)
 {
     input_filename = rootfile;
@@ -42,6 +56,7 @@ void Ranger::changeFile(const std::string& rootfile)
       std::cerr << "Error: Root file appears to be damaged. giving up\n";
       exit(1);
     }
+    clearBuffers();
 }
 
 void Ranger::TreeCopy(const std::string& tree_in,
@@ -123,8 +138,7 @@ void Ranger::Run(TString output_filename)
         case Action::add_formula:   addFormulaBranch(tree_job); break;
         default: break;
         }
-        // Clear buffers
-        //leaf_buffers.clear();
+        clearBuffers();
     }
     outFile->Close();
 }
@@ -133,7 +147,7 @@ void Ranger::reset()
 {
     // Resets jobs and buffers
     tree_jobs.clear();
-    //leaf_buffers.clear();
+    clearBuffers();
 }
 
 void Ranger::SimpleCopy(const TreeJob& tree_job)
@@ -181,17 +195,25 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     getListOfBranchesBySelection(flat_leaves, input_tree, tree_job["flat_branch_selection"]);
 
     TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, flat_leaves);
+    
+    // array_length represents array dimension of each element
     int array_length = 1;
     input_tree->SetBranchStatus(array_length_leaf->GetName(), 1);
     input_tree->SetBranchAddress(array_length_leaf->GetName(), &array_length);
 
+    // Create new branch containing the current array index of each event
+    int array_elem_it = 0;
+    output_tree.Branch("array_length", &array_elem_it, "array_length/i");
+
     int n_entries = input_tree->GetEntriesFast();
 
+    // Event loop
     for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
         // Update all leaves
-        output_tree.Fill();
-        for (int arr_elem = 1; arr_elem < array_length; ++arr_elem) {
+        output_tree.Fill(); // Element 0
+
+        for (array_elem_it = 1; array_elem_it < array_length; ++array_elem_it) {
             //for (auto& leaf : leaf_buffers){
             //    leaf->increment(arr_elem);
             //}
@@ -261,6 +283,7 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         TString LeafNameAfter = LeafName;
 
         size_t buffer_size = 1;
+        bool has_alignment = false;
 
         // Find out leaf dimension
         Int_t probe;
@@ -286,6 +309,7 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
             }
             else {
               LeafNameAfter += "_flat";
+              has_alignment = true;
             }
             if (array_length_leaves.find(dim_leaf) == array_length_leaves.end()) {
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
@@ -303,28 +327,25 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         input_tree->SetBranchStatus(LeafName, 1);
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
-        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
-	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
+	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, has_alignment); break;
         }
     }
 
     if (array_length_leaves.size() > 1) {
-        std::cout << "More than one array length leaf found:\n";
+        std::cout << "[WARNING] More than one array length leaf found:\n";
         for (auto& arl : array_length_leaves) {
             std::cout << arl.first->GetName() << '\n';
         }
-        if (found_const_array) {
-            std::cout << "Alignment leaves and constant array found. Will not select const arrays\n";
-        }
-        std::cout << "Testing alignment... (not implemented)\n";
+        std::cout << "[WARNING] Using " << array_length_leaves.begin()->first->GetName() << " leaf for alignment. Make sure this is intended\n";
     }
     return array_length_leaves.begin()->first;
 }
