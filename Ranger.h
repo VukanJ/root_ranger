@@ -19,7 +19,7 @@
 #include "TFormula.h"
 #include "TLeaf.h"
 
-#include "LeafStore.h"
+#include "LeafBuffer.h"
 
 using FilePtr = std::unique_ptr<TFile>;
 

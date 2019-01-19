@@ -9,7 +9,7 @@ CXXFLAGS  += $(ROOTFLAGS) $(ROOTLIBS)
 LDFLAGS   = -O2 # -Wl
 SOFLAGS   = -shared
 SHLIB    := ranger.so
-HDRS     := LeafStore.h Ranger.h Ranger_LinkDef.h
+HDRS     := LeafBuffer.h Ranger.h Ranger_LinkDef.h
 COMPILE = $(CC) $(CXXFLAGS) -c
 
 OBJFILES := $(patsubst %.cxx,%.o,$(wildcard *.cxx))

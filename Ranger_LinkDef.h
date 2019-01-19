@@ -5,6 +5,6 @@
 #pragma link C++ nestedclasses;
 
 #pragma link C++ defined_in "Ranger.h";
-#pragma link C++ defined_in "LeafStore.h";
+#pragma link C++ defined_in "LeafBuffer.h";
 
 #endif
