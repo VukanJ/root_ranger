@@ -124,22 +124,23 @@ void Ranger::Run(TString output_filename)
         default: break;
         }
         // Clear buffers
-        leaf_buffers.clear();
+        //leaf_buffers.clear();
     }
     outFile->Close();
 }
 
-void Ranger::clear()
+void Ranger::reset()
 {
     // Resets jobs and buffers
     tree_jobs.clear();
-    leaf_buffers.clear();
+    //leaf_buffers.clear();
 }
 
 void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
-    input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree* input_tree  = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree* output_tree = nullptr;
 
     if (!tree_job["branch_selection"].empty()) {
         input_tree->SetBranchStatus("*", 0);
@@ -154,20 +155,21 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
     }
 
     if (tree_job["cut"] == "") {
-        output_tree = TreePtr(input_tree->CloneTree());
+        output_tree = static_cast<TTree*>(input_tree->CloneTree());
     }
     else {
-        output_tree = TreePtr(input_tree->CopyTree(tree_job("cut")));
+        output_tree = static_cast<TTree*>(input_tree->CopyTree(tree_job("cut")));
     }
     output_tree->SetTitle(tree_job("tree_out"));
 
     output_tree->Write("", TObject::kOverwrite); // Disable Autosave backups
+    std::cout << "Done copying\n";
 }
 
 void Ranger::flattenTree(const TreeJob& tree_job)
 {
-    input_tree  = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
-    output_tree = std::make_unique<TTree>(tree_job("tree_out"), tree_job("tree_out"));
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree output_tree(tree_job("tree_out"), tree_job("tree_out"));
     
     input_tree->SetBranchStatus("*", 0);
 
@@ -178,7 +180,7 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     getListOfBranchesBySelection(all_leaves, input_tree,  tree_job["branch_selection"]);
     getListOfBranchesBySelection(flat_leaves, input_tree, tree_job["flat_branch_selection"]);
 
-    TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, all_leaves, flat_leaves);
+    TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, flat_leaves);
     int array_length = 1;
     input_tree->SetBranchStatus(array_length_leaf->GetName(), 1);
     input_tree->SetBranchAddress(array_length_leaf->GetName(), &array_length);
@@ -188,21 +190,21 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
         // Update all leaves
-        output_tree->Fill();
+        output_tree.Fill();
         for (int arr_elem = 1; arr_elem < array_length; ++arr_elem) {
             //for (auto& leaf : leaf_buffers){
             //    leaf->increment(arr_elem);
             //}
-            output_tree->Fill();
+            output_tree.Fill();
         }
     }
     if (!tree_job["cut"].empty()) {
         //Create intermediate tree for copying with selection
-        TreePtr output_tree_selected(output_tree->CopyTree(tree_job("cut")));
+        auto* output_tree_selected = static_cast<TTree*>(output_tree.CopyTree(tree_job("cut")));
         output_tree_selected->Write("", TObject::kOverwrite);
     }
     else {
-        output_tree->Write("", TObject::kOverwrite);
+        output_tree.Write("", TObject::kOverwrite);
     }
 }
 
@@ -210,8 +212,8 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
 {
     // Loop over tree and copy events into output tree.
     // If TLeaf entries are arrays, select first
-    input_tree  = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
-    output_tree = std::make_unique<TTree>(tree_job("tree_out"), tree_job("tree_out"));
+    TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    TTree output_tree(tree_job("tree_out"), tree_job("tree_out"));
 
     input_tree->SetBranchStatus("*", 0);
 
@@ -222,26 +224,26 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
     getListOfBranchesBySelection(all_leaves, input_tree, tree_job["branch_selection"]);
     getListOfBranchesBySelection(bpv_leaves, input_tree, tree_job["bpv_branch_selection"]);
 
-    analyzeLeaves_FillLeafBuffers(input_tree, all_leaves, bpv_leaves);
+    analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, bpv_leaves);
 
     int n_entries = input_tree->GetEntriesFast();
 
     // Event loop
     for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
-        output_tree->Fill();
+        output_tree.Fill();
     }
     if (!tree_job["cut"].empty()) {
         //Create intermediate tree for copying with selection
-        TreePtr output_tree_selected(output_tree->CopyTree(tree_job("cut")));
+        TTree* output_tree_selected = static_cast<TTree*>(output_tree.CopyTree(tree_job("cut")));
         output_tree_selected->Write("", TObject::kOverwrite);
     }
     else {
-      output_tree->Write("", TObject::kOverwrite);
+      output_tree.Write("", TObject::kOverwrite);
     }
 }
 
-TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree,
+TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
                                              std::vector<TLeaf*>& all_leaves, 
                                              std::vector<TLeaf*>& sel_leaves)
 {
@@ -301,17 +303,16 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree,
         input_tree->SetBranchStatus(LeafName, 1);
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
-            case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, buffer_size); break;
-	        case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, buffer_size); break;
-	       // case leaf_bool:    addLeaf<   Bool_t>(LeafName, LeafNameAfter, buffer_size); break;
+        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
+	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size); break;
         }
     }
 

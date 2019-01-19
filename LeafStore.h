@@ -4,7 +4,6 @@
 #include <vector>
 #include <array>
 #include <string>
-#include <variant>
 
 #include "TLeaf.h"
 
@@ -20,8 +19,7 @@ enum LeafType {
 	leaf_float,
 	leaf_double,
 	leaf_long64,
-	leaf_ulong64,
-	leaf_bool
+	leaf_ulong64
 };
 
 static const std::map<std::string, LeafType> LeafTypeFromStr 
@@ -35,8 +33,7 @@ static const std::map<std::string, LeafType> LeafTypeFromStr
     {"Float_t",   leaf_float},
     {"Double_t",  leaf_double},
     {"Long64_t",  leaf_long64},
-    {"ULong64_t", leaf_ulong64},
-    {"Bool_t",    leaf_bool}
+    {"ULong64_t", leaf_ulong64}
 };
 // Datatype postfix
 static const std::string DataTypeNamesShort = "BbSsIiFDLlO";
@@ -63,16 +60,5 @@ public:
     std::vector<T> buffer; // Temporary buffer containing all array elements
     size_t length;         // Maximum array length of this leaf
 };
-
-using LeafBufferVar = std::variant<LeafBuffer<Char_t>,
-                                   LeafBuffer<UChar_t>,
-                                   LeafBuffer<Short_t>,
-                                   LeafBuffer<UShort_t>,
-                                   LeafBuffer<Int_t>,
-                                   LeafBuffer<UInt_t>,
-                                   LeafBuffer<Float_t>,
-                                   LeafBuffer<Double_t>,
-                                   LeafBuffer<Long64_t>,
-                                   LeafBuffer<ULong64_t>>;
 
 #endif
