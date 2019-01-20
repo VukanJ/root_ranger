@@ -21,9 +21,13 @@
 
 #include "LeafBuffer.h"
 
-using FilePtr = std::unique_ptr<TFile>;
+// Buffer stores a list of leaves of a given datatype and a list of 
+// indices of leaves in the first buffer, that have array dimension 
+// and need to be flattened
 template<typename L>
 using Buffer = std::pair<std::vector<LeafBuffer<L>>, std::vector<int>>;
+
+using FilePtr = std::unique_ptr<TFile>;
 
 class Ranger {
 public:
@@ -37,7 +41,6 @@ public:
 	              const std::string& branch_selection="",
 				  const std::string& cut_selection="",
 				  const std::string& rename="");
-
 
     void FlattenTree(const std::string& treename,
 					 const std::string& branch_selection,
@@ -136,6 +139,7 @@ private:
 template<typename L> 
 Buffer<L>* Ranger::getBuffer()
 {
+	// Return buffer corresponding to datatype
 	if constexpr (std::is_same<L, Char_t>::value)    return &leaf_buffers_B;
 	if constexpr (std::is_same<L, UChar_t>::value)   return &leaf_buffers_b;
 	if constexpr (std::is_same<L, Short_t>::value)   return &leaf_buffers_S;
@@ -146,7 +150,7 @@ Buffer<L>* Ranger::getBuffer()
 	if constexpr (std::is_same<L, Double_t>::value)  return &leaf_buffers_D;
 	if constexpr (std::is_same<L, Long64_t>::value)  return &leaf_buffers_L;
 	if constexpr (std::is_same<L, ULong64_t>::value) return &leaf_buffers_l;
-	return nullptr; // Impossible
+	return nullptr;
 }
 
 template<typename L> 
@@ -160,7 +164,6 @@ void Ranger::addLeaf(TString& name_before,
 	Buffer<L>* lb_vec = getBuffer<L>();
 	// Create leaf store, link addresses
 	if (assign_index) {
-		//std::cout << name_before << " gets " << lb_vec->first.size() << '\n';
 		lb_vec->second.push_back(lb_vec->first.size());
 	}
     lb_vec->first.emplace_back(std::move(LeafBuffer<L>(buffer_size)));

@@ -130,6 +130,7 @@ void Ranger::dev()
 {
 
 }
+
 void Ranger::Run(TString output_filename)
 {
     // Runs all previously defined jobs in sequence (tree-wise)
@@ -212,23 +213,20 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     int max_array_length = -1;
     input_tree->SetBranchStatus(array_length_leaf->GetName(), 1);
     input_tree->SetBranchAddress(array_length_leaf->GetName(), &max_array_length);
-    //exit(0);
     // Create new branch containing the current array index of each event
-    int array_elem_it = 0;
+    int array_elem_it = -1;
     output_tree.Branch("array_length", &array_elem_it, "array_length/i");
 
     int n_entries = input_tree->GetEntriesFast();
-
+    std::cout << "NEVENTS: " << n_entries << '\n';
     // Event loop
     for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
-        //std::cout << "EVENT " << event << ' ' << max_array_length << ' ';
-        // Update all leaves
-        output_tree.Fill(); // Element 0
-
+        array_elem_it = 0;
+        std::cout << "EVENT " << event << ' ' << max_array_length << '\n';
+        output_tree.Fill();
         for (array_elem_it = 1; array_elem_it < max_array_length; ++array_elem_it) {
             // go to next array element
-            //std::cout << '@';
             incrementBuffer<Char_t>(array_elem_it);
             incrementBuffer<UChar_t>(array_elem_it);
             incrementBuffer<Short_t>(array_elem_it);
@@ -241,7 +239,6 @@ void Ranger::flattenTree(const TreeJob& tree_job)
             incrementBuffer<ULong64_t>(array_elem_it);
             output_tree.Fill();
         }
-        //std::cout << '\n';
     }
     if (!tree_job["cut"].empty()) {
         //Create intermediate tree for copying with selection
@@ -411,8 +408,6 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
     // Loop over branches, append if regex matches name
     std::regex re(regex_select);
 
-     std::cout << "SELECTION " << regex_select << '\n';
-
     for (const auto& leaf : *leaf_list) {
         std::smatch match;
         std::string leafName = std::string(leaf->GetName()); // required for std::regex_search
@@ -427,7 +422,6 @@ void Ranger::addFormulaBranch(const TreeJob& tree_job)
     TTree* output_tree_existing = static_cast<TTree*>(outFile->Get(tree_job("tree_out")));
     std::string formula = tree_job["formula"]; // Name does not really fit here ...
 
-    //return;
     std::regex var_search(R"(\#[\w_][\w\d_]*)"); // Matches variables
 
     std::set<std::string> variables;
@@ -464,4 +458,3 @@ void Ranger::addFormulaBranch(const TreeJob& tree_job)
     }
     output_tree_existing->Write("", TObject::kOverwrite);
 }
-
