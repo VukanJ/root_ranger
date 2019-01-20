@@ -32,7 +32,7 @@ from root_ranger import Ranger
 
 ranger = Ranger("DTT.root")
 ranger.copy_tree("DecayTree", cut="BKGCAT==0", dest="DecayTreeTruth")
-ranger.Run("DTT_truth.root")
+ranger.run("DTT_truth.root")
 ```
 ## Example 2:
 We want to copy the tree containing the integrated luminosity, perform a best primary vertex selection (assuming we used *DecayTreeFitter*) on another tree and only keep a subset of branches and apply a selection and repeat this procedure with 10 different files that have a similar structure.
@@ -61,7 +61,7 @@ ranger = Ranger("DTT.root")
 ranger.bpv_selection("DecayTree", bpv_branches="B0_Fit*", dest="DecayTree_bpv")
 ranger.flatten_tree("DecayTree", flat_branches="B0_Fit*", dest="DecayTree_flat")
 
-ranger.Run("DTT_out.root")
+ranger.run("DTT_out.root")
 ```
 ## Example 4:
 We want to do a certain operation on one file, but something different for another file
@@ -71,13 +71,13 @@ from root_ranger import Ranger
 ranger = Ranger("DTT.root")
 ranger.bpv_selection("DecayTree", bpv_branches="B0_Fit*")
 
-ranger.Run("DTT_out.root")
+ranger.run("DTT_out.root")
 
 ranger.reset() # Reset all previous job descriptions
-ranger.changeFile("DTT_2.root")
+ranger.change_file("DTT_2.root")
 ranger.flatten_tree("DecayTree", flat_branches="B0_Fit*")
 
-ranger.Run("DTT_2_out.root")
+ranger.run("DTT_2_out.root")
 ```
 Alternatively, multiple Ranger instances can be used
 ## Example 4:
@@ -89,7 +89,7 @@ ranger = Ranger("DTT.root")
 ranger.add_formula("Kaon_PT", "TMath::Sqrt(#KS0_PX**2+#KS0_PY**2)")
 ranger.copy_tree("DecayTree", cut="Kaon_PT>500") 
 
-ranger.Run("DTT_out.root")
+ranger.run("DTT_out.root")
 ```
 The `add_formula` command adds another formula to a list of formulas 
 that are added when the next tree is written.
