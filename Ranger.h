@@ -91,6 +91,7 @@ private:
 	// Utility methods
 	void closeFile(TFile*);
 	void clearBuffers();
+	void finalizeTreeWriting(const TreeJob&, TTree*, bool tree_prepared=true);
 	TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
 									     std::vector<TLeaf*>& all_leaves,
 									     std::vector<TLeaf*>& bpv_leaves);
@@ -113,7 +114,9 @@ private:
 	void SimpleCopy(const TreeJob&);
 	void flattenTree(const TreeJob&);
 	void BestPVSelection(const TreeJob&);
-	void addFormulaBranch(const TreeJob&);
+	void addFormulaBranch(TTree* output_tree,
+						  const std::string& name,
+						  std::string formula);
 
 	std::vector<TreeJob> tree_jobs;
 
@@ -133,6 +136,8 @@ private:
     Buffer<Long64_t>  leaf_buffers_L;
     Buffer<ULong64_t> leaf_buffers_l;
 
+	std::vector<std::pair<std::string, std::string>> formula_buffer;
+
 	ClassDef(Ranger,1)
 };
 
@@ -140,15 +145,15 @@ template<typename L>
 Buffer<L>* Ranger::getBuffer()
 {
 	// Return buffer corresponding to datatype
-	if constexpr (std::is_same<L, Char_t>::value)    return &leaf_buffers_B;
-	if constexpr (std::is_same<L, UChar_t>::value)   return &leaf_buffers_b;
-	if constexpr (std::is_same<L, Short_t>::value)   return &leaf_buffers_S;
-	if constexpr (std::is_same<L, UShort_t>::value)  return &leaf_buffers_s;
-	if constexpr (std::is_same<L, Int_t>::value)     return &leaf_buffers_I;
-	if constexpr (std::is_same<L, UInt_t>::value)    return &leaf_buffers_i;
-	if constexpr (std::is_same<L, Float_t>::value)   return &leaf_buffers_F;
-	if constexpr (std::is_same<L, Double_t>::value)  return &leaf_buffers_D;
-	if constexpr (std::is_same<L, Long64_t>::value)  return &leaf_buffers_L;
+	if constexpr (std::is_same<L,    Char_t>::value) return &leaf_buffers_B;
+	if constexpr (std::is_same<L,   UChar_t>::value) return &leaf_buffers_b;
+	if constexpr (std::is_same<L,   Short_t>::value) return &leaf_buffers_S;
+	if constexpr (std::is_same<L,  UShort_t>::value) return &leaf_buffers_s;
+	if constexpr (std::is_same<L,     Int_t>::value) return &leaf_buffers_I;
+	if constexpr (std::is_same<L,    UInt_t>::value) return &leaf_buffers_i;
+	if constexpr (std::is_same<L,   Float_t>::value) return &leaf_buffers_F;
+	if constexpr (std::is_same<L,  Double_t>::value) return &leaf_buffers_D;
+	if constexpr (std::is_same<L,  Long64_t>::value) return &leaf_buffers_L;
 	if constexpr (std::is_same<L, ULong64_t>::value) return &leaf_buffers_l;
 	return nullptr;
 }

@@ -26,7 +26,7 @@ class Ranger:
                                   self.__extend_selection(cut),
                                   dest)
 
-    def add_formula(formula_name, formula):
+    def add_formula(self, formula_name, formula):
         # For example add_formula("B0_PT", "TMath::Sqrt(#B0_X**2+#B0_Y**2)")
         self.__ranger.addFormula(formula_name, formula)
 

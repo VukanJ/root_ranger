@@ -1,15 +1,9 @@
 from root_ranger import Ranger
-import time
 
 ranger = Ranger("../test/0/DTT.root")
-start = time.time()
-#ranger.bpv_selection("inclusive_Jpsi/DecayTree", "B0_Fit*", dest="DecayTree")
-ranger.flatten_tree("inclusive_Jpsi/DecayTree", "B0_Fit*", branches="B0*", dest="DecayTree")
-ranger.run("Test_flat.root")
-end = time.time()
+ranger.add_formula("F", "TMath::Sqrt(#B0_M)")
+ranger.copy_tree("inclusive_Jpsi/DecayTree", branches="B0_PX", dest="MyTree")
+#ranger.bpv_selection("inclusive_Jpsi/DecayTree", "B0_Fit*", dest="MyTree")
+ranger.run("DTT_flat.root")
 
-
-print("Took, ", end-start, " seconds")
-#ranger2 = Ranger("../test/0/DTT.root")
-#
-#ranger2.run("Test_flat.root")
+# Invalid input tree names crashes program in a non-trivial way!
