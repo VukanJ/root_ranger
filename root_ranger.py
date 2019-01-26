@@ -1,25 +1,27 @@
+import os
 import ROOT
 from ROOT import gSystem
-gSystem.Load("ranger.so")
+gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so'))
+
 
 class Ranger:
     def __init__(self, file):
         self.__ranger = ROOT.Ranger(file)
     
-    def copy_tree(self, treename, dest="", branches="*", cut=""):
+    def copy_tree(self, treename, dest='', branches='*', cut=''):
         self.__ranger.TreeCopy(treename, 
                                self.__extend_selection(branches), 
                                self.__extend_selection(cut),
                                dest)
     
-    def flatten_tree(self, treename, flat_branches, branches="*", cut="", dest=""):
+    def flatten_tree(self, treename, flat_branches, branches='*', cut='', dest=''):
         self.__ranger.FlattenTree(treename,
                                   self.__extend_selection(branches),
                                   self.__extend_selection(flat_branches),
                                   self.__extend_selection(cut),
                                   dest)
     
-    def bpv_selection(self, treename, bpv_branches, branches="*",  cut="", dest=""):
+    def bpv_selection(self, treename, bpv_branches, branches='*',  cut='', dest=''):
         self.__ranger.BPVselection(treename,
                                   self.__extend_selection(branches),
                                   self.__extend_selection(bpv_branches),
@@ -41,6 +43,6 @@ class Ranger:
     
     def __extend_selection(self, sel_list):
         if isinstance(sel_list, list):
-            return "((" + ")|(".join(sel_list) + "))"
+            return '((' + ')|('.join(sel_list) + '))'
         else:
             return sel_list
