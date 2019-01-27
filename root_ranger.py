@@ -1,8 +1,9 @@
 import os
 import ROOT
+import sys
 from ROOT import gSystem
-gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so'))
 
+gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so'))
 
 class Ranger:
     def __init__(self, file):
@@ -11,22 +12,25 @@ class Ranger:
     def copy_tree(self, treename, dest='', branches='*', cut=''):
         self.__ranger.TreeCopy(treename, 
                                self.__extend_selection(branches), 
+
                                self.__extend_selection(cut),
                                dest)
-    
+
     def flatten_tree(self, treename, flat_branches, branches='*', cut='', dest=''):
+
         self.__ranger.FlattenTree(treename,
                                   self.__extend_selection(branches),
                                   self.__extend_selection(flat_branches),
                                   self.__extend_selection(cut),
                                   dest)
-    
+
     def bpv_selection(self, treename, bpv_branches, branches='*',  cut='', dest=''):
+
         self.__ranger.BPVselection(treename,
-                                  self.__extend_selection(branches),
-                                  self.__extend_selection(bpv_branches),
-                                  self.__extend_selection(cut),
-                                  dest)
+                                   self.__extend_selection(branches),
+                                   self.__extend_selection(bpv_branches),
+                                   self.__extend_selection(cut),
+                                   dest)
 
     def add_formula(self, formula_name, formula):
         # For example add_formula("B0_PT", "TMath::Sqrt(#B0_X**2+#B0_Y**2)")
@@ -40,7 +44,7 @@ class Ranger:
 
     def run(self, outfile):
         self.__ranger.Run(outfile)
-    
+
     def __extend_selection(self, sel_list):
         if isinstance(sel_list, list):
             return '((' + ')|('.join(sel_list) + '))'

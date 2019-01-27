@@ -99,7 +99,7 @@ private:
 	template<typename L> Buffer<L>* getBuffer();
 
     template<typename L>
-    void addLeaf(TString& name_before, TString& name_after,
+    void addLeaf(const TLeaf* ref_leaf, TString& leaf_name,
 				 TTree* tree_in, TTree* tree_out,
 				 size_t buffer_size, bool assign_index);
 	
@@ -159,8 +159,8 @@ Buffer<L>* Ranger::getBuffer()
 }
 
 template<typename L> 
-void Ranger::addLeaf(TString& name_before,
-                     TString& name_after,
+void Ranger::addLeaf(const TLeaf* ref_leaf,
+                     TString& leaf_name,
 					 TTree* tree_in,
 					 TTree* tree_out,
 					 size_t buffer_size,
@@ -173,8 +173,15 @@ void Ranger::addLeaf(TString& name_before,
 	}
     lb_vec->first.emplace_back(std::move(LeafBuffer<L>(buffer_size)));
 
-    tree_in->SetBranchAddress(name_before, &(lb_vec->first.back().buffer[0]));
-    tree_out->Branch(name_after,           &(lb_vec->first.back().buffer[0]));
+    tree_in->SetBranchAddress(ref_leaf->GetName(), &(lb_vec->first.back().buffer[0]));
+	
+	if (buffer_size > 1 && !assign_index) {
+		// constant array / matrix -> Keep dimension
+    	tree_out->Branch(leaf_name, &(lb_vec->first.back().buffer[0]), ref_leaf->GetTitle());
+	}
+	else {
+    	tree_out->Branch(leaf_name, &(lb_vec->first.back().buffer[0]));
+	}
 }
 
 template<typename L>

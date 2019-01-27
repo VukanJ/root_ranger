@@ -147,7 +147,6 @@ void Ranger::Run(TString output_filename)
         }
         clearBuffers();
     }
-    std::cout << "Run finished!\n";
     outFile->Close();
 }
 
@@ -327,19 +326,13 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         }
         else {
             // Leaf elements are arrays / matrices of variable length
-
-            // Get max buffer size if unknown
-            if (!contains(sel_leaves, leaf)) {
-              // Skipping this leaf since its dimension is not aligned with bpv branches
-              // Not sure what to do with these. Ignore for now. Maybe write an extra tree for them
-              // std::cout << leaf->GetName() << '\n';
-              continue;
-            }
-            else {
+            
+            if (contains(sel_leaves, leaf)) {
+              // Mark leaf for flattening
               LeafNameAfter += "_flat";
-              //std::cout << LeafName << '\n';
               assign_bufferindex = true;
             }
+            // Get max buffer size if unknown
             if (array_length_leaves.find(dim_leaf) == array_length_leaves.end()) {
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
                 array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());
@@ -352,20 +345,19 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
             input_tree->SetBranchStatus(leaf->GetName(), 0);
             continue;
         }
-
         input_tree->SetBranchStatus(LeafName, 1);
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
-        case leaf_char:    addLeaf<   Char_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_uchar:   addLeaf<  UChar_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_short:   addLeaf<  Short_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_ushort:  addLeaf< UShort_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_int:     addLeaf<    Int_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_uint:    addLeaf<   UInt_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_float:   addLeaf<  Float_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_double:  addLeaf< Double_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_long64:  addLeaf< Long64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_ulong64: addLeaf<ULong64_t>(LeafName, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+        case leaf_char:    addLeaf<   Char_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_uchar:   addLeaf<  UChar_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_short:   addLeaf<  Short_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_ushort:  addLeaf< UShort_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_int:     addLeaf<    Int_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_uint:    addLeaf<   UInt_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_float:   addLeaf<  Float_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_double:  addLeaf< Double_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_long64:  addLeaf< Long64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	    case leaf_ulong64: addLeaf<ULong64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
         }
     }
 
