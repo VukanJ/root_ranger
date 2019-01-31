@@ -341,11 +341,6 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
             buffer_size = array_length_leaves[dim_leaf].first;
         }
 
-        if (array_length_leaves.find(leaf) != array_length_leaves.end()) {
-            // Do not write array leaves to new tree. If flattening write new index branch
-            input_tree->SetBranchStatus(leaf->GetName(), 0);
-            continue;
-        }
         input_tree->SetBranchStatus(LeafName, 1);
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
