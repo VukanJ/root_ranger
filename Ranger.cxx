@@ -90,11 +90,11 @@ void Ranger::FlattenTree(const std::string& tree_in,
 				         const std::string& tree_out)
 {
     tree_jobs.push_back({
-        {{"tree_in",               tree_in}, 
+        {{"tree_in",               tree_in},
          {"tree_out",              tree_out == "" ? tree_in : tree_out},
          {"branch_selection",      branch_selection},
          {"flat_branch_selection", flat_branch_selection},
-         {"cut",                   cut_selection}}, 
+         {"cut",                   cut_selection}},
         Action::flatten_tree});
 }
 
@@ -105,11 +105,11 @@ void Ranger::BPVselection(const std::string& tree_in,
 					      const std::string& tree_out)
 {
     tree_jobs.push_back({
-        {{"tree_in",              tree_in}, 
+        {{"tree_in",              tree_in},
          {"tree_out",             tree_out == "" ? tree_in : tree_out},
          {"branch_selection",     branch_selection},
          {"bpv_branch_selection", bpv_branch_selection},
-         {"cut",                  cut_selection}}, 
+         {"cut",                  cut_selection}},
         Action::bpv_selection});
 }
 
@@ -117,7 +117,7 @@ void Ranger::addFormula(const std::string& name, std::string formula)
 {
     tree_jobs.push_back({
         {{"formula",     formula},
-         {"branch_name", name}}, 
+         {"branch_name", name}},
         Action::add_formula});
 }
 
@@ -141,7 +141,7 @@ void Ranger::Run(TString output_filename)
         case Action::copytree:      SimpleCopy(tree_job);       break;
         case Action::flatten_tree:  flattenTree(tree_job);      break;
         case Action::bpv_selection: BestPVSelection(tree_job);  break;
-        case Action::add_formula: formula_buffer.push_back(std::make_pair(tree_job["branch_name"], 
+        case Action::add_formula: formula_buffer.push_back(std::make_pair(tree_job["branch_name"],
                                                                           tree_job["formula"])); break;
         default: break;
         }
@@ -218,7 +218,7 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 {
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
     TTree output_tree(tree_job("tree_out"), tree_job("tree_out"));
-    
+
     input_tree->SetBranchStatus("*", 0);
 
     std::cout << "Flattening tree " << tree_job["tree_in"] << '\n';
@@ -227,9 +227,9 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 
     getListOfBranchesBySelection(all_leaves, input_tree,  tree_job["branch_selection"]);
     getListOfBranchesBySelection(flat_leaves, input_tree, tree_job["flat_branch_selection"]);
-    
+
     TLeaf* array_length_leaf = analyzeLeaves_FillLeafBuffers(input_tree, &output_tree, all_leaves, flat_leaves);
-    
+
     // array_length represents array dimension of each element
     int max_array_length = -1;
     input_tree->SetBranchStatus(array_length_leaf->GetName(), 1);
@@ -293,7 +293,7 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
 }
 
 TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
-                                             std::vector<TLeaf*>& all_leaves, 
+                                             std::vector<TLeaf*>& all_leaves,
                                              std::vector<TLeaf*>& sel_leaves)
 {
     // Analyzes the selected leaves and finds out their dimensionality
@@ -301,7 +301,7 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
     // to maximum value in array_length leaf that is returned by leaf->GetLeafCount()
     // Returns pointer to array length leaf
 
-    std::map<TLeaf*, size_t> array_length_leaves; // ... and corresponding buffer sizes
+    std::map<TLeaf*, std::pair<size_t, bool>> array_length_leaves; // ... and corresponding buffer sizes and whether to flatten them
 
     bool found_const_array = false;
 
@@ -326,18 +326,19 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
         }
         else {
             // Leaf elements are arrays / matrices of variable length
-            
-            if (contains(sel_leaves, leaf)) {
-              // Mark leaf for flattening
-              LeafNameAfter += "_flat";
-              assign_bufferindex = true;
-            }
+
             // Get max buffer size if unknown
             if (array_length_leaves.find(dim_leaf) == array_length_leaves.end()) {
                 input_tree->SetBranchStatus(dim_leaf->GetName(), 1); // !
-                array_length_leaves[dim_leaf] = input_tree->GetMaximum(dim_leaf->GetName());
+                array_length_leaves[dim_leaf] = std::make_pair(input_tree->GetMaximum(dim_leaf->GetName()), false);
             }
-            buffer_size = array_length_leaves[dim_leaf];
+            if (contains(sel_leaves, leaf)) {
+              // Mark leaf for flattening / bpv selection
+              LeafNameAfter += "_flat";
+              assign_bufferindex = true;
+              array_length_leaves[dim_leaf].second = true; // Use for alignment
+            }
+            buffer_size = array_length_leaves[dim_leaf].first;
         }
 
         if (array_length_leaves.find(leaf) != array_length_leaves.end()) {
@@ -349,24 +350,29 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
 
         switch (LeafTypeFromStr.find(leaf->GetTypeName())->second) {
         case leaf_char:    addLeaf<   Char_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_uchar:   addLeaf<  UChar_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_short:   addLeaf<  Short_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_ushort:  addLeaf< UShort_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_int:     addLeaf<    Int_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_uint:    addLeaf<   UInt_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_float:   addLeaf<  Float_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_double:  addLeaf< Double_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_long64:  addLeaf< Long64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
-	    case leaf_ulong64: addLeaf<ULong64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_uchar:   addLeaf<  UChar_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_short:   addLeaf<  Short_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_ushort:  addLeaf< UShort_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_int:     addLeaf<    Int_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_uint:    addLeaf<   UInt_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_float:   addLeaf<  Float_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_double:  addLeaf< Double_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_long64:  addLeaf< Long64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
+	      case leaf_ulong64: addLeaf<ULong64_t>(leaf, LeafNameAfter, input_tree, output_tree, buffer_size, assign_bufferindex); break;
         }
     }
 
     if (array_length_leaves.size() > 1) {
+      TLeaf* alignLeaf = nullptr;
         std::cout << "\033[93m[WARNING]\033[0m More than one array length leaf found:\n";
         for (auto& arl : array_length_leaves) {
-            std::cout << arl.first->GetName() << '\n';
+            if(arl.second.second) {
+              alignLeaf = arl.first;
+              std::cout << alignLeaf->GetName() << '\n';
+            }
         }
-        std::cout << "\033[93m[WARNING]\033[0m Using " << array_length_leaves.begin()->first->GetName() << " leaf for alignment. Make sure this is intended\n";
+        std::cout << "\033[93m[WARNING]\033[0m Using " << alignLeaf->GetName() << " leaf for alignment. Make sure this is intended\n";
+        return alignLeaf;
     }
     return array_length_leaves.begin()->first;
 }
