@@ -118,6 +118,7 @@ private:
                         const std::string& name,
                         std::string formula);
 
+  void JobValidityCheck(const TreeJob&);
   std::vector<TreeJob> tree_jobs;
 
   FilePtr inFile, outFile;

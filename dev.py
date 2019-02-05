@@ -5,5 +5,3 @@ ranger = Ranger("DTT.root")
 ranger.bpv_selection("inclusive_Jpsi/DecayTree", bpv_branches="B0_Fit*", dest="DecayTree")
 
 ranger.run("DTT_flat.root")
-
-# Invalid input tree names crashes program in a non-trivial way!

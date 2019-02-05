@@ -126,6 +126,34 @@ void Ranger::dev()
 
 }
 
+void Ranger::JobValidityCheck(const TreeJob& job)
+{
+  // Check whether input path and tree exists in source file
+  // Prevents confusing segmentation violation if tree is not found
+  if (job.opt.find("tree_in") != job.opt.end()) {
+    auto sep = job["tree_in"].rfind('/');
+    if (sep != std::string::npos) {
+      // Directory + TTree, for example DTT.root:/FolderDir/DecayTree
+      TString dir  = job["tree_in"].substr(0, sep);
+      TString tree = job["tree_in"].substr(sep + 1);
+
+      auto treedir = inFile->GetDirectory(dir);
+      if (treedir == nullptr) {
+        std::cerr << "\033[91m[ERROR]\033[0m TDirectory \"" << dir << "\" not found in " << input_filename << '\n';
+        exit(1);
+      }
+      if (treedir->FindKey(tree) == nullptr) {
+        std::cerr << "\033[91m[ERROR]\033[0m TTree \"" << tree << "\" not found in " << input_filename << '\n';
+        exit(1);
+      }
+    }
+    else if (inFile->FindKey(job("tree_in")) == nullptr) {
+      std::cerr << "\033[91m[ERROR]\033[0m TTree \"" << job("tree_in") << "\" not found in " << input_filename << '\n';
+      exit(1);
+    }
+  }
+}
+
 void Ranger::Run(TString output_filename)
 {
   // Runs all previously defined jobs in sequence (tree-wise)
@@ -137,6 +165,9 @@ void Ranger::Run(TString output_filename)
   closeFile(outFile.get());
   outFile = FilePtr(TFile::Open(output_filename, "RECREATE"));
   for (auto& tree_job : tree_jobs) {
+
+    JobValidityCheck(tree_job);
+
     switch (tree_job.action) {
     case Action::copytree:      SimpleCopy(tree_job);      break;
     case Action::flatten_tree:  flattenTree(tree_job);     break;
