@@ -1,6 +1,6 @@
 import os
-import ROOT
 import sys
+import ROOT
 from ROOT import gSystem
 
 gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so'))
@@ -8,45 +8,58 @@ gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so
 class Ranger:
     def __init__(self, file):
         self.__ranger = ROOT.Ranger(file)
-    
-    def copy_tree(self, treename, dest='', branches='*', cut=''):
-        self.__ranger.TreeCopy(treename, 
-                               self.__extend_selection(branches), 
 
-                               self.__extend_selection(cut),
+    def copy_tree(self, treename, dest='', branches='*', cut=''):
+        """Copies a TTree to a new file using a branch selection and an optional cut"""
+        self.__ranger.TreeCopy(treename,
+                               self.__construct_regex(branches),
+                               self.__parse_cut(cut),
                                dest)
 
     def flatten_tree(self, treename, flat_branches, branches='*', cut='', dest=''):
-
+        """Uses the leaf counter variable associated with the branches in flat_branches
+           to reduce the dimensionality of these leaves. If multiple different leaf counters
+           are used, they need to have the same contents."""
         self.__ranger.FlattenTree(treename,
-                                  self.__extend_selection(branches),
-                                  self.__extend_selection(flat_branches),
-                                  self.__extend_selection(cut),
+                                  self.__construct_regex(branches),
+                                  self.__construct_regex(flat_branches),
+                                  self.__parse_cut(cut),
                                   dest)
 
     def bpv_selection(self, treename, bpv_branches, branches='*',  cut='', dest=''):
-
+        """If branch elements have array dimension, bpv_selection only selects the first
+           element and discards the rest. This is often required for a bpv selection if
+           the DecayTreeFitter is used.
+        """
         self.__ranger.BPVselection(treename,
-                                   self.__extend_selection(branches),
-                                   self.__extend_selection(bpv_branches),
-                                   self.__extend_selection(cut),
+                                   self.__construct_regex(branches),
+                                   self.__construct_regex(bpv_branches),
+                                   self.__parse_cut(cut),
                                    dest)
 
     def add_formula(self, formula_name, formula):
-        # For example add_formula("B0_PT", "TMath::Sqrt(#B0_X**2+#B0_Y**2)")
+        """Adds a formula to the formula buffer that is evaluated in the next writing step.
+           Branch names must start with '#'
+        """
         self.__ranger.addFormula(formula_name, formula)
 
     def reset(self):
+        """Resets all root_ranger tree jobs"""
         self.__ranger.reset()
 
     def change_file(self, file):
+        """Changes the input file"""
         self.__ranger.changeFile(file)
 
     def run(self, outfile):
+        """Runs all previously defined selections in sequence"""
         self.__ranger.Run(outfile)
 
-    def __extend_selection(self, sel_list):
+    def __parse_cut(self, cut):
+        """If cuts are given as a list, they are joined by logical AND"""
+        return ('(' + ')&&('.join(cut) + ')') if isinstance(cut, list) else cut
+
+    def __construct_regex(self, sel_list):
         if isinstance(sel_list, list):
-            return '((' + ')|('.join(sel_list) + '))'
-        else:
-            return sel_list
+            return '|'.join(sel_list)
+        return sel_list

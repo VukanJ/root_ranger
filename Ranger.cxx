@@ -227,8 +227,8 @@ void Ranger::finalizeTreeWriting(const TreeJob& tree_job, TTree* tree, bool tree
 void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
+    std::cout << "Making tree copy\n";
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
-
     if (!tree_job["branch_selection"].empty()) {
         input_tree->SetBranchStatus("*", 0);
         std::vector<TLeaf*> activate_leaves;
@@ -270,7 +270,6 @@ void Ranger::flattenTree(const TreeJob& tree_job)
     output_tree.Branch("array_length", &array_elem_it, "array_length/i");
 
     int n_entries = input_tree->GetEntriesFast();
-    std::cout << "NEVENTS: " << n_entries << '\n';
     // Event loop
     for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
