@@ -26,7 +26,7 @@ class Ranger:
                                   self.__parse_cut(cut),
                                   dest)
 
-    def bpv_selection(self, treename, bpv_branches, branches='*',  cut='', dest=''):
+    def bpv_selection(self, treename, bpv_branches, branches='*', cut='', dest=''):
         """If branch elements have array dimension, bpv_selection only selects the first
            element and discards the rest. This is often required for a bpv selection if
            the DecayTreeFitter is used.

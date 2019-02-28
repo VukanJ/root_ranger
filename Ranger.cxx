@@ -157,13 +157,21 @@ void Ranger::JobValidityCheck(const TreeJob& job)
 void Ranger::Run(TString output_filename)
 {
   // Runs all previously defined jobs in sequence (tree-wise)
-
+  outfile_name = output_filename;
   // Create output file
-  if (!output_filename.EndsWith(".root")) {
-    output_filename += ".root";
+  if (!outfile_name.EndsWith(".root")) {
+    outfile_name += ".root";
   }
   closeFile(outFile.get());
-  outFile = FilePtr(TFile::Open(output_filename, "RECREATE"));
+
+  // Create temporary file
+  mtgen.seed(std::random_device()());
+  distr = std::uniform_int_distribution<std::mt19937::result_type>(0, ULONG_MAX);
+
+  temporary_file_name = std::to_string(distr(mtgen)) + '_'
+                            + std::to_string(time(0)) + outfile_name;
+
+  temporary_file = FilePtr(TFile::Open(temporary_file_name, "RECREATE"));
   for (auto& tree_job : tree_jobs) {
 
     JobValidityCheck(tree_job);
@@ -178,19 +186,21 @@ void Ranger::Run(TString output_filename)
     }
     clearBuffers();
   }
-  outFile->Close();
 }
 
 void Ranger::reset()
 {
   // Resets jobs and buffers
   tree_jobs.clear();
+  formula_buffer.clear();
   clearBuffers();
 }
 
-void Ranger::finalizeTreeWriting(const TreeJob& tree_job, TTree* tree, bool tree_prepared)
+void Ranger::finalizeTreeWriting(const TreeJob& tree_job, TTree* temp_tree, bool tree_prepared)
 {
-  // Add formula branches, apply cuts, write to file
+  // Add formula branches, apply cuts, write to file, Create final tree
+  outFile = FilePtr(TFile::Open(outfile_name, "RECREATE"));
+
   if (!formula_buffer.empty()) {
     TTree* temp_tree = tree->CloneTree();
     for (const auto& formula : formula_buffer){
@@ -203,24 +213,26 @@ void Ranger::finalizeTreeWriting(const TreeJob& tree_job, TTree* tree, bool tree
     else {
       TTree* output_tree = temp_tree->CopyTree(tree_job("cut"));
       output_tree->Write("", TObject::kOverwrite);
-      delete output_tree;
     }
-    delete temp_tree;
   }
-  else if (tree_job["cut"] != ""){
-    TTree* output_tree = tree->CopyTree(tree_job("cut"));
-    output_tree->Write("", TObject::kOverwrite);
-    delete output_tree;
+  else if (tree_job["cut"] != "") {
+    TTree* output_tree = temp_tree->CopyTree(tree_job("cut"));
+  }
+  else if (!tree_prepared) {
+    TTree* output_tree = temp_tree->CloneTree();
   }
   else {
-    if(!tree_prepared){
-      TTree* output_tree = tree->CloneTree();
-      output_tree->Write("", TObject::kOverwrite);
-      delete output_tree;
-    }
-    else{
-      tree->Write("", TObject::kOverwrite);
-    }
+    temp_tree->Write("", TObject::kOverwrite);
+  }
+  
+  output_tree->SetName(tree_job("tree_out"));
+  output_tree->SetTitle("root_ranger_tree");
+  outFile->Write("", TObject::kOverwrite);
+  outFile->Close();
+  temporary_file->Close();
+
+  if (remove(temporary_file_name) != 0) {
+    std::cerr << "Error while deleting temporary file " << temporary_file_name << '\n';
   }
 }
 
@@ -228,6 +240,7 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
     std::cout << "Making tree copy\n";
+
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
     if (!tree_job["branch_selection"].empty()) {
         input_tree->SetBranchStatus("*", 0);
@@ -240,8 +253,9 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
     else {
         input_tree->SetBranchStatus("*", 1);
     }
-    input_tree->SetTitle(tree_job("tree_out"));
-    input_tree->SetName(tree_job("tree_out"));
+    //input_tree->SetTitle(tree_job("tree_out"));
+    //input_tree->SetName(tree_job("tree_out"));
+    temporary_file->Write("", TObject::kOverwrite);
     finalizeTreeWriting(tree_job, input_tree, false);
 }
 
@@ -291,7 +305,8 @@ void Ranger::flattenTree(const TreeJob& tree_job)
             output_tree.Fill();
         }
     }
-    finalizeTreeWriting(tree_job, &output_tree);
+    temporary_file->Write("", TObject::kOverwrite);
+    //finalizeTreeWriting(tree_job, &output_tree);
 }
 
 void Ranger::BestPVSelection(const TreeJob& tree_job)
@@ -299,8 +314,7 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
   // Loop over tree and copy events into output tree.
   // If TLeaf entries are arrays, select first
   TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
-  TTree output_tree(tree_job("tree_out"), tree_job("tree_out"));
-
+  TTree output_tree(tree_job("tree_out") + "_ROOTRANGER", "root_ranger_tree");
   input_tree->SetBranchStatus("*", 0);
 
   std::cout << "BPV selection on " << tree_job["tree_in"] << '\n';
@@ -319,6 +333,7 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
     input_tree->GetEntry(event);
     output_tree.Fill();
   }
+  temporary_file->Write("", TObject::kOverwrite);
   finalizeTreeWriting(tree_job, &output_tree);
 }
 
@@ -332,8 +347,6 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
   // Returns pointer to array length leaf
 
   std::map<TLeaf*, std::pair<size_t, bool>> array_length_leaves; // ... and corresponding buffer sizes and whether to flatten them
-
-  bool found_const_array = false;
 
   for (const auto& leaf : all_leaves) {
     TString LeafName = leaf->GetName();
@@ -349,7 +362,7 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
     if (dim_leaf == nullptr) {
       if (probe > 1) {
         // Leaf elements are arrays / matrices of constant length > 1
-        found_const_array = true;
+        // found_const_array = true;
       }
         // else probe = 1 -> scalar
         buffer_size = probe;

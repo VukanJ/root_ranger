@@ -1,9 +1,11 @@
-#ifndef LUMBERJACK_H
-#define LUMBERJACK_H
+#ifndef RANGER_H
+#define RANGER_H
 
 #include <iostream>
+#include <cstdio> // remove(const char* file)
 #include <algorithm>
 #include <typeinfo>
+#include <random>
 #include <regex>
 #include <vector>
 #include <string>
@@ -110,6 +112,7 @@ private:
                                     TTree* target_tree,
                                     std::string selection);
 
+  void JobValidityCheck(const TreeJob&);
   // Actual tree operations
   void SimpleCopy(const TreeJob&);
   void flattenTree(const TreeJob&);
@@ -118,10 +121,14 @@ private:
                         const std::string& name,
                         std::string formula);
 
-  void JobValidityCheck(const TreeJob&);
   std::vector<TreeJob> tree_jobs;
 
-  FilePtr inFile, outFile;
+  // RNG for creating UUID-like string
+  std::mt19937 mtgen;
+  std::uniform_int_distribution<std::mt19937::result_type> distr;
+
+  FilePtr inFile, temporary_file, outFile;
+  TString temporary_file_name, outfile_name;
 
   std::string input_filename;
 
