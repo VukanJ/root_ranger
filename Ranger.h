@@ -93,7 +93,7 @@ private:
   // Utility methods
   void closeFile(TFile*);
   void clearBuffers();
-  void finalizeTreeWriting(const TreeJob&, TTree*, bool tree_prepared=true);
+  void AddBranchesAndCuts(const TreeJob&, TTree*, bool tree_prepared=true);
   TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
                                        std::vector<TLeaf*>& all_leaves,
                                        std::vector<TLeaf*>& bpv_leaves);
@@ -131,6 +131,9 @@ private:
   TString temporary_file_name, outfile_name;
 
   std::string input_filename;
+
+  // List of trees that are copied from temporary file to final file
+  std::vector<TString> keep_trees;
 
   // Leaf buffer storage with indices of array-type leaves
     Buffer<Char_t>    leaf_buffers_B;
