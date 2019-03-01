@@ -36,7 +36,7 @@ public:
   Ranger(const TString& rootfile);
   virtual ~Ranger();
 
-  void changeFile(const std::string& rootfile);
+  void setInputFile(const std::string& rootfile);
 
   // Tree job parser methods
   void TreeCopy(const std::string& treename,
@@ -131,9 +131,6 @@ private:
   TString temporary_file_name, outfile_name;
 
   std::string input_filename;
-
-  // List of trees that are copied from temporary file to final file
-  std::vector<TString> keep_trees;
 
   // Leaf buffer storage with indices of array-type leaves
     Buffer<Char_t>    leaf_buffers_B;

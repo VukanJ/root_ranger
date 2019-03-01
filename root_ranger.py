@@ -47,9 +47,9 @@ class Ranger:
         """Resets all root_ranger tree jobs"""
         self.__ranger.reset()
 
-    def change_file(self, file):
-        """Changes the input file"""
-        self.__ranger.changeFile(file)
+    def setInputFile(self, file):
+        """Sets a new input file"""
+        self.__ranger.setInputFile(file)
 
     def run(self, outfile):
         """Runs all previously defined selections in sequence"""

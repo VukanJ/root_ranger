@@ -8,7 +8,7 @@ Ranger::Ranger(const TString& rootfile)
 {
   distr = std::uniform_int_distribution<std::mt19937::result_type>(0, ULONG_MAX);
   TTree::SetMaxTreeSize(1000000000000);
-  changeFile(input_filename);
+  setInputFile(input_filename);
 }
 
 Ranger::~Ranger()
@@ -52,7 +52,7 @@ void Ranger::clearBuffers()
   leaf_buffers_l.second.clear();
 }
 
-void Ranger::changeFile(const std::string& rootfile)
+void Ranger::setInputFile(const std::string& rootfile)
 {
   input_filename = rootfile;
 
@@ -212,7 +212,7 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
   outFile = FilePtr(TFile::Open(outfile_name, "UPDATE"));
 
   TTree* write_tree = nullptr;
-  if (tree_job["cut"] != ""){
+  if (tree_job["cut"] != "") {
     write_tree = temp_tree->CopyTree(tree_job("cut"));
     write_tree->SetName(tree_job("tree_out"));
   }
@@ -220,7 +220,9 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
     write_tree = temp_tree->CloneTree();
     write_tree->SetName(tree_job("tree_out"));
   }
-  write_tree->Write("", TObject::kOverwrite);
+
+  outFile->Delete(TString(temp_tree->GetName())+";1");
+  outFile->Write("", TObject::kOverwrite);
   outFile->Close();
 
   /*
@@ -303,7 +305,7 @@ void Ranger::flattenTree(const TreeJob& tree_job)
 
     int n_entries = input_tree->GetEntriesFast();
     // Event loop
-    for (int event = 0; event < 100; ++event) {
+    for (int event = 0; event < n_entries; ++event) {
         input_tree->GetEntry(event);
         array_elem_it = 0;
         //std::cout << "EVENT " << event << ' ' << max_array_length << '\n';
@@ -349,7 +351,7 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
   auto n_entries = input_tree->GetEntriesFast();
 
   // Event loop
-  for (auto event = 0; event < 100; ++event) {
+  for (auto event = 0; event < n_entries; ++event) {
     input_tree->GetEntry(event);
     output_tree.Fill();
   }
