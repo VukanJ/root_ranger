@@ -2,7 +2,7 @@
 #define RANGER_H
 
 #include <iostream>
-#include <cstdio> // remove(const char* file)
+#include <cstdio>
 #include <algorithm>
 #include <typeinfo>
 #include <random>
@@ -93,7 +93,7 @@ private:
   // Utility methods
   void closeFile(TFile*);
   void clearBuffers();
-  void AddBranchesAndCuts(const TreeJob&, TTree*, bool tree_prepared=true);
+  void AddBranchesAndCuts(const TreeJob&, TTree*, bool directCopy=false);
   TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
                                        std::vector<TLeaf*>& all_leaves,
                                        std::vector<TLeaf*>& bpv_leaves);

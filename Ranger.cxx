@@ -206,24 +206,31 @@ void Ranger::reset()
   clearBuffers();
 }
 
-void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool tree_prepared)
+void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool directCopy)
 {
   // Add formula branches, apply cuts, write to file, Create final tree
   outFile = FilePtr(TFile::Open(outfile_name, "UPDATE"));
-
   TTree* write_tree = nullptr;
+
   if (tree_job["cut"] != "") {
+    std::cout << "COPYING\n";
     write_tree = temp_tree->CopyTree(tree_job("cut"));
+    std::cout << "SETTING NAME\n";
     write_tree->SetName(tree_job("tree_out"));
   }
   else {
+    std::cout << "CLONING\n";
     write_tree = temp_tree->CloneTree();
+    std::cout << "SETTING NAME\n";
     write_tree->SetName(tree_job("tree_out"));
   }
-
-  outFile->Delete(TString(temp_tree->GetName())+";1");
+  std::cout << "DELETING ORIGINAL TREE\n";
+  outFile->Delete(TString(temp_tree->GetName()) + ";*");
+  std::cout << "WRITING FILE\n";
   outFile->Write("", TObject::kOverwrite);
+  std::cout << "CLOSING FILE\n";
   outFile->Close();
+  std::cout << "DONE\n";
 
   /*
   //if (!formula_buffer.empty()) {
@@ -261,8 +268,7 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
 void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
-    std::cout << "Making tree copy\n";
-
+    std::cout << "Copying tree " << tree_job["tree_in"] << '\n';
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
     if (!tree_job["branch_selection"].empty()) {
         input_tree->SetBranchStatus("*", 0);
@@ -275,8 +281,8 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
     else {
         input_tree->SetBranchStatus("*", 1);
     }
-    temporary_file->Write("", TObject::kOverwrite);
-    AddBranchesAndCuts(tree_job, input_tree, false);
+    //temporary_file->Write("", TObject::kOverwrite);
+    AddBranchesAndCuts(tree_job, input_tree, true);
 }
 
 void Ranger::flattenTree(const TreeJob& tree_job)
