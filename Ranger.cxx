@@ -1,5 +1,6 @@
 #include "Riostream.h"
 #include "Ranger.h"
+#include "TFormula.h"
 
 ClassImp(Ranger);
 
@@ -120,22 +121,7 @@ void Ranger::addFormula(const std::string& name, std::string formula)
 
 void Ranger::dev()
 {
-    auto inFile = FilePtr(TFile::Open(TString("DTT.root"), "READ"));
-    TTree* input_tree = static_cast<TTree*>(inFile->Get("inclusive_Jpsi/DecayTree"));
-
-    auto outFile = FilePtr(TFile::Open("DTT_DEV.root", "UPDATE"));
-    outFile->cd();
-
-    TTree* output_tree = nullptr;
-
-    output_tree = input_tree->CopyTree("B0_M<5900");
-
-    output_tree->SetName("DEVTREE");
-    output_tree->SetTitle("root_ranger_tree");
-    outFile->Delete(TString(input_tree->GetName()) + ";*");
-    outFile->Write("", TObject::kOverwrite);
-    outFile->Close();
-    inFile->Close();
+    TFormula f("F", "[0]**2+[1]**2");
 }
 
 void Ranger::JobValidityCheck(const TreeJob& job)
@@ -299,6 +285,13 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
     else {
       output_tree = input_tree->CloneTree();
     }
+
+    if (!formula_buffer.empty()) {
+      for (const auto& formula : formula_buffer){
+        addFormulaBranch(output_tree, formula.first, formula.second);
+      }
+    }
+
     output_tree->SetName(tree_job("tree_out"));
     output_tree->SetTitle("root_ranger_tree");
     outFile->Delete(TString(input_tree->GetName()) + ";*");
@@ -546,7 +539,9 @@ void Ranger::addFormulaBranch(TTree* output_tree, const std::string& name, std::
     ++idx;
   }
 
+  std::cout << "TFORMULA " << formula << '\n';
   TFormula tformula("F", TString(formula));
+  std::cout << "TFORMULA2\n";
 
   int n_entries = output_tree->GetEntriesFast();
   for (int event = 0; event < n_entries; ++event) {

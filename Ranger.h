@@ -16,9 +16,9 @@
 #include <memory>
 
 #include "TString.h"
+#include "TFormula.h"
 #include "TFile.h"
 #include "TTree.h"
-#include "TFormula.h"
 #include "TLeaf.h"
 
 #include "LeafBuffer.h"
@@ -209,4 +209,4 @@ bool inline contains(const std::string& str, const char elem)
   return std::find(std::begin(str), std::end(str), elem) != std::end(str);
 }
 
-#endif
+#endif // RANGER_H

@@ -63,4 +63,4 @@ public:
   std::vector<T> buffer;  // Temporary buffer containing all array elements
 };
 
-#endif
+#endif // LEAFSTORE_H
