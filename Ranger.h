@@ -36,7 +36,7 @@ public:
   Ranger(const TString& rootfile);
   virtual ~Ranger();
 
-  void setInputFile(const std::string& rootfile);
+  void setInputFile(const TString& rootfile);
 
   // Tree job parser methods
   void TreeCopy(const std::string& treename,
@@ -127,22 +127,19 @@ private:
   std::mt19937 mtgen;
   std::uniform_int_distribution<std::mt19937::result_type> distr;
 
-  FilePtr inFile, temporary_file, outFile;
-  TString temporary_file_name, outfile_name;
-
-  std::string input_filename;
+  TString input_filename, temporary_file_name, outfile_name;
 
   // Leaf buffer storage with indices of array-type leaves
-    Buffer<Char_t>    leaf_buffers_B;
-    Buffer<UChar_t>   leaf_buffers_b;
-    Buffer<Short_t>   leaf_buffers_S;
-    Buffer<UShort_t>  leaf_buffers_s;
-    Buffer<Int_t>     leaf_buffers_I;
-    Buffer<UInt_t>    leaf_buffers_i;
-    Buffer<Float_t>   leaf_buffers_F;
-    Buffer<Double_t>  leaf_buffers_D;
-    Buffer<Long64_t>  leaf_buffers_L;
-    Buffer<ULong64_t> leaf_buffers_l;
+  Buffer<Char_t>    leaf_buffers_B;
+  Buffer<UChar_t>   leaf_buffers_b;
+  Buffer<Short_t>   leaf_buffers_S;
+  Buffer<UShort_t>  leaf_buffers_s;
+  Buffer<Int_t>     leaf_buffers_I;
+  Buffer<UInt_t>    leaf_buffers_i;
+  Buffer<Float_t>   leaf_buffers_F;
+  Buffer<Double_t>  leaf_buffers_D;
+  Buffer<Long64_t>  leaf_buffers_L;
+  Buffer<ULong64_t> leaf_buffers_l;
 
   std::vector<std::pair<std::string, std::string>> formula_buffer;
 
