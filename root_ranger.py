@@ -49,7 +49,7 @@ class Ranger:
         """Resets all root_ranger tree jobs"""
         self.__ranger.reset()
 
-    def setInputFile(self, file):
+    def set_input_file(self, file):
         """Sets a new input file"""
         self.__ranger.setInputFile(file)
 
