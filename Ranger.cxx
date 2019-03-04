@@ -180,8 +180,7 @@ void Ranger::Run(TString output_filename)
 
     JobValidityCheck(tree_job);
 
-    try {
-      switch (tree_job.action) {
+    switch (tree_job.action) {
       case Action::copytree:      SimpleCopy(tree_job);      break;
       case Action::flatten_tree:  flattenTree(tree_job);     break;
       case Action::bpv_selection: BestPVSelection(tree_job); break;
@@ -189,12 +188,8 @@ void Ranger::Run(TString output_filename)
            formula_buffer.push_back(std::make_pair(tree_job["branch_name"],
                                                    tree_job["formula"])); break;
       default: break;
-      }
-      clearBuffers();
     }
-    catch (...) {
-      remove(temporary_file_name);
-    }
+    clearBuffers();
   }
   // Delete temporary file from disk
   remove(temporary_file_name);
@@ -213,6 +208,13 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
   // Add formula branches, apply cuts, write to file, Create final tree
   auto outFile = FilePtr(TFile::Open(outfile_name, "UPDATE"));
   TTree* write_tree = nullptr;
+
+  if (!formula_buffer.empty()) {
+      for (const auto& formula : formula_buffer){
+        addFormulaBranch(temp_tree, formula.first, formula.second);
+      }
+    formula_buffer.clear();
+  }
 
   if (!tree_job["cut"].empty() && !skipcut) {
     write_tree = temp_tree->CopyTree(tree_job("cut"));
@@ -293,6 +295,7 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
       for (const auto& formula : formula_buffer){
         addFormulaBranch(output_tree, formula.first, formula.second);
       }
+      formula_buffer.clear();
     }
 
     output_tree->SetName(tree_job("tree_out"));
@@ -520,6 +523,8 @@ void Ranger::getListOfBranchesBySelection(std::vector<TLeaf*>& selected, TTree* 
 void Ranger::addFormulaBranch(TTree* output_tree, const std::string& name, std::string formula)
 {
   // Extract variable strings from formula string
+  std::cout << "Compiling formula \"" << formula << "\" --> ";
+
   std::set<std::string> variables;
   std::regex var_search(R"(\#[\w_][\w\d_]*)"); // Matches variables
   std::sregex_iterator iter(formula.begin(), formula.end(), var_search);
@@ -542,9 +547,9 @@ void Ranger::addFormulaBranch(TTree* output_tree, const std::string& name, std::
     ++idx;
   }
 
-  std::cout << "TFORMULA " << formula << '\n';
+  std::cout << '\"' << formula << "\"\n";
+
   TFormula tformula("F", TString(formula));
-  std::cout << "TFORMULA2\n";
 
   int n_entries = output_tree->GetEntriesFast();
   for (int event = 0; event < n_entries; ++event) {
