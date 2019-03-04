@@ -79,7 +79,7 @@ Apply a certain operation to a tree in a file, but then do something different w
 ```
 Alternatively, multiple Ranger instances can be used
 ## Example 5:
-Add the transverse momentum of kaons to the tuple and simultaneously apply to it. Only write a certain list of branches to the new file.
+Add the transverse momentum of kaons to the tuple and simultaneously apply a cut to it. Only write a certain list of branches to the new file.
 ```python
     from root_ranger import Ranger
 
