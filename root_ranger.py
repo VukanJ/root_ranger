@@ -1,9 +1,11 @@
 import os
 import sys
 import ROOT
-from ROOT import gSystem
-
-gSystem.Load(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ranger.so'))
+from ROOT import gSystem, gInterpreter
+thispath = os.path.abspath(os.path.dirname(__file__))
+gInterpreter.ProcessLine('#include "{0}/Ranger.h"'.format(thispath))
+gInterpreter.ProcessLine('#include "{0}/LeafBuffer.h"'.format(thispath))
+gSystem.Load(os.path.join(thispath, 'ranger.so'))
 
 class Ranger:
     def __init__(self, file):

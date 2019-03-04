@@ -26,6 +26,8 @@
 // Buffer stores a list of leaves of a given datatype and a list of
 // indices of leaves in the first buffer, that have array dimension
 // and need to be flattened
+
+
 template<typename L>
 using Buffer = std::pair<std::vector<LeafBuffer<L>>, std::vector<int>>;
 
@@ -35,7 +37,7 @@ class Ranger {
 public:
   Ranger(const TString& rootfile);
   virtual ~Ranger();
-
+  
   void setInputFile(const TString& rootfile);
 
   // Tree job parser methods
@@ -66,6 +68,7 @@ public:
 
   void dev();
 
+
   enum Action {
     copytree,
     selection,
@@ -75,10 +78,10 @@ public:
   };
 
   struct TreeJob {
-    /* TreeJob stores everything Ranger needs to
-    *  know about an operation performed on a single tree
-    *  Must be public for ROOT
-    */
+    // TreeJob stores everything Ranger needs to
+    // know about an operation performed on a single tree
+    // Must be public for ROOT
+    
     std::string inline operator[](const std::string& key) const {
       return opt.find(key)->second;
     }
@@ -91,6 +94,7 @@ public:
 
 private:
   // Utility methods
+  
   void closeFile(TFile*);
   void clearBuffers();
   void AddBranchesAndCuts(const TreeJob&, TTree*, bool directCopy=false);

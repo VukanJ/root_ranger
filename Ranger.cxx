@@ -1,6 +1,5 @@
 #include "Riostream.h"
 #include "Ranger.h"
-#include "TFormula.h"
 
 ClassImp(Ranger);
 
@@ -119,10 +118,13 @@ void Ranger::addFormula(const std::string& name, std::string formula)
        Action::add_formula});
 }
 
+
 void Ranger::dev()
 {
     TFormula f("F", "[0]**2+[1]**2");
+    f.Print();
 }
+
 
 void Ranger::JobValidityCheck(const TreeJob& job)
 {
@@ -224,7 +226,7 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
   outFile->Write("", TObject::kOverwrite);
   outFile->Close();
 
-  /*
+  
   //if (!formula_buffer.empty()) {
   //  TTree* temp_tree = tree->CloneTree();
   //  for (const auto& formula : formula_buffer){
@@ -240,22 +242,23 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
   //  }
   //}
   //else 
-  if (tree_job["cut"] != "") {
-    TTree* output_tree = temp_tree->CopyTree(tree_job("cut"));
-  }
-  else if (!tree_prepared) {
-    TTree* output_tree = temp_tree->CloneTree();
-  }
-  else {
-    temp_tree->Write("", TObject::kOverwrite);
-  }
+  //if (tree_job["cut"] != "") {
+  //  TTree* output_tree = temp_tree->CopyTree(tree_job("cut"));
+  //}
+  //else if (!tree_prepared) {
+  //  TTree* output_tree = temp_tree->CloneTree();
+  //}
+  //else {
+  //  temp_tree->Write("", TObject::kOverwrite);
+  //}
+  //
+  //output_tree->SetName(tree_job("tree_out"));
+  //output_tree->SetTitle("root_ranger_tree");
+  //outFile->Write("", TObject::kOverwrite);
+  //outFile->Close();
   
-  output_tree->SetName(tree_job("tree_out"));
-  output_tree->SetTitle("root_ranger_tree");
-  outFile->Write("", TObject::kOverwrite);
-  outFile->Close();
-  */
 }
+
 
 void Ranger::SimpleCopy(const TreeJob& tree_job)
 {
