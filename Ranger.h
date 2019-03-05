@@ -61,7 +61,7 @@ public:
     void addFormula(const std::string& name, std::string formula);
 
     // Runs all specified Ranger jobs in sequence
-    void Run(TString output_filename);
+    void Run(const std::string& output_filename);
 
     // Reset Ranger jobs
     void reset();

@@ -163,7 +163,7 @@ void Ranger::JobValidityCheck(const TreeJob& job)
 }
 
 
-void Ranger::Run(TString output_filename)
+void Ranger::Run(const std::string& output_filename)
 {
     // Runs all previously defined jobs in sequence (tree-wise)
     outfile_name = output_filename;
@@ -175,9 +175,18 @@ void Ranger::Run(TString output_filename)
     // Touch temporary file
     mtgen.seed(std::random_device()());
 
-    temporary_file_name = std::to_string(distr(mtgen)) + '_'
-                        + std::to_string(time(0)) + outfile_name;
-    temporary_file_name = '.' + temporary_file_name; // Hide file
+    auto sep = output_filename.rfind('/');
+    if (sep != std::string::npos) {
+        TString dir      = output_filename.substr(0, sep);
+        TString filename = output_filename.substr(sep + 1);
+        temporary_file_name = dir + "/." + std::to_string(distr(mtgen)) + '_'
+                                  + std::to_string(time(0)) + filename;
+    }
+    else {
+        temporary_file_name = std::to_string(distr(mtgen)) + '_'
+                            + std::to_string(time(0)) + outfile_name;
+        temporary_file_name = '.' + temporary_file_name; // Hide file
+    }
 
     auto temporary_file = FilePtr(TFile::Open(temporary_file_name, "RECREATE"));
     temporary_file->Close();
