@@ -234,7 +234,7 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
         write_tree->SetName(tree_job("tree_out"));
     }
     outFile->Delete(TString(temp_tree->GetName()) + ";*");
-    outFile->Write("", TObject::kOverwrite);
+    write_tree->Write("", TObject::kOverwrite);
     outFile->Close();
 }
 
@@ -278,7 +278,7 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
     output_tree->SetName(tree_job("tree_out"));
     output_tree->SetTitle("root_ranger_tree");
     outFile->Delete(TString(input_tree->GetName()) + ";*");
-    outFile->Write("", TObject::kOverwrite);
+    output_tree->Write("", TObject::kOverwrite);
     outFile->Close();
     inFile->Close();
 }
@@ -313,7 +313,7 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
         input_tree->GetEntry(event);
         output_tree.Fill();
     }
-    temporary_file->Write("", TObject::kOverwrite);
+    output_tree.Write("", TObject::kOverwrite);
     AddBranchesAndCuts(tree_job, &output_tree);
     temporary_file->Close();
     inputFile->Close();
