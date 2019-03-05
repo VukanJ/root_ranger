@@ -22,7 +22,7 @@ void Ranger::closeFile(TFile* fileptr)
 }
 
 
-void Ranger::clearBuffers()
+void Ranger::clearLeafBuffers() noexcept
 {
     leaf_buffers_B.first.clear();
     leaf_buffers_b.first.clear();
@@ -63,7 +63,7 @@ void Ranger::setInputFile(const TString& rootfile)
         std::cerr << "\033[91m[ERROR]\033[0m Root file appears to be damaged. giving up!\n";
         exit(1);
     }
-    clearBuffers();
+    clearLeafBuffers();
     formula_buffer.clear();
     inFile->Close();
 }
@@ -175,18 +175,7 @@ void Ranger::Run(const std::string& output_filename)
     // Touch temporary file
     mtgen.seed(std::random_device()());
 
-    auto sep = output_filename.rfind('/');
-    if (sep != std::string::npos) {
-        TString dir      = output_filename.substr(0, sep);
-        TString filename = output_filename.substr(sep + 1);
-        temporary_file_name = dir + "/." + std::to_string(distr(mtgen)) + '_'
-                                  + std::to_string(time(0)) + filename;
-    }
-    else {
-        temporary_file_name = std::to_string(distr(mtgen)) + '_'
-                            + std::to_string(time(0)) + outfile_name;
-        temporary_file_name = '.' + temporary_file_name; // Hide file
-    }
+    initTmpFilename(output_filename);
 
     auto temporary_file = FilePtr(TFile::Open(temporary_file_name, "RECREATE"));
     temporary_file->Close();
@@ -205,10 +194,27 @@ void Ranger::Run(const std::string& output_filename)
                                                         tree_job["formula"])); break;
             default: break;
         }
-        clearBuffers();
+        clearLeafBuffers();
     }
     // Delete temporary file from disk
     remove(temporary_file_name);
+}
+
+
+void Ranger::initTmpFilename(std::string output_filename)
+{
+    auto sep = output_filename.rfind('/');
+    if (sep != std::string::npos) {
+        TString dir      = output_filename.substr(0, sep);
+        TString filename = output_filename.substr(sep + 1);
+        temporary_file_name = dir + "/." + std::to_string(distr(mtgen)) + '_'
+                                  + std::to_string(time(0)) + filename;
+    }
+    else {
+        temporary_file_name = std::to_string(distr(mtgen)) + '_'
+                            + std::to_string(time(0)) + outfile_name;
+        temporary_file_name = '.' + temporary_file_name; // Hide file
+    }
 }
 
 
@@ -217,7 +223,7 @@ void Ranger::reset()
     // Resets jobs and buffers
     tree_jobs.clear();
     formula_buffer.clear();
-    clearBuffers();
+    clearLeafBuffers();
 }
 
 
@@ -248,12 +254,16 @@ void Ranger::AddBranchesAndCuts(const TreeJob& tree_job, TTree* temp_tree, bool 
 }
 
 
-void Ranger::SimpleCopy(const TreeJob& tree_job)
+void Ranger::SimpleCopy(TreeJob& tree_job)
 {
     // Copy tree with cut selection and branch selection using built-in methods
     std::cout << "Copying tree " << tree_job["tree_in"] << '\n';
     auto inFile = FilePtr(TFile::Open(input_filename, "READ"));
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
+    
+    // Change tree name so that it is not accidentally deleted afterwards
+    tree_job.opt.find("tree_in")->second += "_RANGER_COPY_SOURCE";
+    input_tree->SetName(tree_job("tree_in"));
 
     auto outFile = FilePtr(TFile::Open(outfile_name, "UPDATE"));
     outFile->cd();
@@ -293,7 +303,7 @@ void Ranger::SimpleCopy(const TreeJob& tree_job)
 }
 
 
-void Ranger::BestPVSelection(const TreeJob& tree_job)
+void Ranger::BestPVSelection(TreeJob& tree_job)
 {
     // Loop over tree and copy events into output tree.
     // If TLeaf entries are arrays, select first
@@ -304,7 +314,6 @@ void Ranger::BestPVSelection(const TreeJob& tree_job)
 
     auto temporary_file = FilePtr(TFile::Open(temporary_file_name, "UPDATE"));
     TTree output_tree(tree_job("tree_out") + "_ROOTRANGER_BPV", "root_ranger_tree");
-    //keep_trees.push_back(output_tree->GetName());
 
     input_tree->SetBranchStatus("*", 0);
 

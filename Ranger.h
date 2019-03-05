@@ -97,33 +97,43 @@ public:
 
 private:
     // Utility methods
-
     void closeFile(TFile*);
-    void clearBuffers();
+    // Initializes unique temporary filename in target directory
+    void initTmpFilename(std::string outFileName);
+    // Clears all leaf buffers
+    void clearLeafBuffers() noexcept;
+    // Adds additional formula branches and a cut selection
     void AddBranchesAndCuts(const TreeJob&, TTree*, bool directCopy=false);
+    // Loops over list of leaves, determines datatype and dimension and allocates 
+    // buffer space
     TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
                                          std::vector<TLeaf*>& all_leaves,
                                          std::vector<TLeaf*>& bpv_leaves);
-
+    // Returns pointer to leaf buffer of datatype L
     template<typename L> Buffer<L>* getBuffer();
 
+    // Adds a leaf to a buffer, called by analyzeLeaves_FillLeafBuffers()
     template<typename L>
     void addLeaf(const TLeaf* ref_leaf, TString& leaf_name,
                  TTree* tree_in, TTree* tree_out,
                  size_t buffer_size, bool assign_index);
 
+    // Moves element inc in leaf buffer to the read address position
     template<typename L>
     void inline incrementBuffer(int inc);
-
+    // Matches branch names by regex
     void getListOfBranchesBySelection(std::vector<TLeaf*>&,
                                       TTree* target_tree,
                                       std::string selection);
 
+    // Checks whether TTree and TDirectory exist
     void JobValidityCheck(const TreeJob&);
+    /////////////////////////
     // Actual tree operations
-    void SimpleCopy(const TreeJob&);
+    /////////////////////////
+    void SimpleCopy(TreeJob&);
     void flattenTree(const TreeJob&);
-    void BestPVSelection(const TreeJob&);
+    void BestPVSelection(TreeJob&);
     void addFormulaBranch(TTree* output_tree,
                           const std::string& name,
                           std::string formula);
