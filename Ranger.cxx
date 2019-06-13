@@ -262,8 +262,7 @@ void Ranger::SimpleCopy(TreeJob& tree_job)
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
     
     // Change tree name so that it is not accidentally deleted afterwards
-    tree_job.opt.find("tree_in")->second += "_RANGER_COPY_SOURCE";
-    input_tree->SetName(tree_job("tree_in"));
+    input_tree->SetName(tree_job("tree_in") + "_ROOTRANGER_COPY_SOURCE");
 
     auto outFile = FilePtr(TFile::Open(outfile_name, "UPDATE"));
     outFile->cd();
