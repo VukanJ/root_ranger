@@ -189,6 +189,10 @@ void Ranger::addLeaf(const TLeaf* ref_leaf,
                      size_t buffer_size,
                      bool assign_index)
 {
+    if (buffer_size == 0) {
+        std::cerr << "\033[93m[WARNING]\033[0m Discarding " << leaf_name << " since variable is empty!\n";
+        return;
+    } 
     Buffer<L>* lb_vec = getBuffer<L>();
     // Create leaf store, link addresses
     if (assign_index) {
