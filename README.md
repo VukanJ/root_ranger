@@ -61,7 +61,19 @@ tree, but store the results in two different trees in the output file.
 
     ranger.run("DTT_out.root")
 ```
+The same is possible using only the method 'add_selection'.
 ## Example 4:
+```python
+    from root_ranger import Ranger
+
+    ranger = Ranger("DTT.root")
+    ranger.add_selection("DecayTree", dest="DecayTree", cut="B0_M>5000", flat_branches="", bpv_branches="")
+    ranger.add_selection("DecayTree", dest="DecayTree_flat", cut="B0_M>5000", flat_branches="B0_Fit*", bpv_branches="")
+    ranger.add_selection("DecayTree", dest="DecayTree_bpv", cut="B0_M>5000", flat_branches="", bpv_branches="B0_Fit*")
+    ranger.run("DTT_out.root")
+```
+It is not possible to flatten a tree and perform a best PV selection at the same time.
+## Example 5:
 Apply a certain operation to a tree in a file, but then do something different with another file.
 ```python
     from root_ranger import Ranger
@@ -78,7 +90,7 @@ Apply a certain operation to a tree in a file, but then do something different w
     ranger.run("DTT_2_out.root")
 ```
 Alternatively, multiple Ranger instances can be used
-## Example 5:
+## Example 6:
 Add the transverse momentum of kaons to the tuple and simultaneously apply a cut to it. Only write a certain list of branches to the new file.
 ```python
     from root_ranger import Ranger

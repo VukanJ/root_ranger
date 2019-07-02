@@ -56,11 +56,11 @@ void Ranger::setInputFile(const TString& rootfile)
 
     // Check whether root file is healthy
     if (!inFile->IsOpen()) {
-        std::cerr << "\033[91m[ERROR]\033[0m Cannot open file " + input_filename << '\n';
+        std::cerr << "\033[07m\033[91m[ERROR]\033[0m Cannot open file " + input_filename << '\n';
         exit(1);
     }
     if (inFile->IsZombie()) {
-        std::cerr << "\033[91m[ERROR]\033[0m Root file appears to be damaged. giving up!\n";
+        std::cerr << "\033[07m\033[91m[ERROR]\033[0m Root file appears to be damaged. giving up!\n";
         exit(1);
     }
     clearLeafBuffers();
@@ -146,16 +146,16 @@ void Ranger::JobValidityCheck(const TreeJob& job)
 
             auto treedir = inFile->GetDirectory(dir);
             if (treedir == nullptr) {
-                std::cerr << "\033[91m[ERROR]\033[0m TDirectory \"" << dir << "\" not found in " << input_filename << '\n';
+                std::cerr << "\033[07m\033[91m[ERROR]\033[0m TDirectory \"" << dir << "\" not found in " << input_filename << '\n';
                 exit(1);
             }
             if (treedir->FindKey(tree) == nullptr) {
-                std::cerr << "\033[91m[ERROR]\033[0m TTree \"" << tree << "\" not found in " << input_filename << '\n';
+                std::cerr << "\033[07m\033[91m[ERROR]\033[0m TTree \"" << tree << "\" not found in " << input_filename << '\n';
                 exit(1);
             }
         }
         else if (inFile->FindKey(job("tree_in")) == nullptr) {
-            std::cerr << "\033[91m[ERROR]\033[0m TTree \"" << job("tree_in") << "\" not found in " << input_filename << '\n';
+            std::cerr << "\033[07m\033[91m[ERROR]\033[0m TTree \"" << job("tree_in") << "\" not found in " << input_filename << '\n';
             exit(1);
         }
     }
@@ -260,7 +260,7 @@ void Ranger::SimpleCopy(TreeJob& tree_job)
     std::cout << "Copying tree " << tree_job["tree_in"] << '\n';
     auto inFile = FilePtr(TFile::Open(input_filename, "READ"));
     TTree* input_tree = static_cast<TTree*>(inFile->Get(tree_job("tree_in")));
-    
+
     // Change tree name so that it is not accidentally deleted afterwards
     input_tree->SetName(tree_job("tree_in") + "_ROOTRANGER_COPY_SOURCE");
 
@@ -458,14 +458,14 @@ TLeaf* Ranger::analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tr
 
     if (array_length_leaves.size() > 1) {
         TLeaf* alignLeaf = nullptr;
-        std::cout << "\033[93m[WARNING]\033[0m More than one array length leaf found:\n";
+        std::cout << "\033[07m\033[93m[WARNING]\033[0m More than one array length leaf found:\n";
         for (auto& arl : array_length_leaves) {
             if(arl.second.second) {
                 alignLeaf = arl.first;
                 std::cout << alignLeaf->GetName() << '\n';
             }
         }
-        std::cout << "\033[93m[WARNING]\033[0m Using " << alignLeaf->GetName() << " leaf for alignment. Make sure this is intended\n";
+        std::cout << "\033[07m\033[93m[WARNING]\033[0m Using " << alignLeaf->GetName() << " leaf for alignment. Make sure this is intended\n";
         return alignLeaf;
     }
     return array_length_leaves.begin()->first;

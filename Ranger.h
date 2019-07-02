@@ -105,7 +105,7 @@ private:
     void clearLeafBuffers() noexcept;
     // Adds additional formula branches and a cut selection
     void AddBranchesAndCuts(const TreeJob&, TTree*, bool directCopy=false);
-    // Loops over list of leaves, determines datatype and dimension and allocates 
+    // Loops over list of leaves, determines datatype and dimension and allocates
     // buffer space
     TLeaf* analyzeLeaves_FillLeafBuffers(TTree* input_tree, TTree* output_tree,
                                          std::vector<TLeaf*>& all_leaves,
@@ -190,9 +190,9 @@ void Ranger::addLeaf(const TLeaf* ref_leaf,
                      bool assign_index)
 {
     if (buffer_size == 0) {
-        std::cerr << "\033[93m[WARNING]\033[0m Discarding " << leaf_name << " since variable is empty!\n";
+        std::cerr << "\033[07m\033[93m[WARNING]\033[0m Discarding " << leaf_name << " since variable is empty!\n";
         return;
-    } 
+    }
     Buffer<L>* lb_vec = getBuffer<L>();
     // Create leaf store, link addresses
     if (assign_index) {

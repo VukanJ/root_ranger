@@ -39,6 +39,36 @@ class Ranger:
                                    self.__parse_cut(cut),
                                    dest)
 
+    def  add_selection(self, treename, dest='', branches='*', cut='', flat_branches='', bpv_branches=''):
+        """Copies a TTree to a new file using a branch selection and an optional cut.
+        If flat_branches is used, the leaf counter variable associated with the branches in
+        flat_branches is used to reduce the dimensionality of these leaves. If multiple
+        different leaf counters are used, they need to have the same contents.
+        If bpv_branches is used and branch elements have array dimension, bpv_selection only
+        selects the first element and discards the rest. This is often required for a bpv
+        selection if the DecayTreeFitter is used.
+        flat_branches and bpv_branches cannot be used at the same time."""
+        if flat_branches and bpv_branches:
+            raise ValueError('Flatten and best PV selection is not possible for the same tree.')
+        elif flat_branches:
+            self.__ranger.FlattenTree(treename,
+                                      self.__construct_regex(branches),
+                                      self.__construct_regex(flat_branches),
+                                      self.__parse_cut(cut),
+                                      dest)
+        elif bpv_branches:
+            self.__ranger.BPVselection(treename,
+                                       self.__construct_regex(branches),
+                                       self.__construct_regex(bpv_branches),
+                                       self.__parse_cut(cut),
+                                       dest)
+        else:
+            self.__ranger.TreeCopy(treename,
+                                   self.__construct_regex(branches),
+                                   self.__parse_cut(cut),
+                                   dest)
+
+
     def add_formula(self, formula_name, formula):
         """Adds a formula to the formula buffer that is evaluated in the next writing step.
            Branch names must start with '#'
