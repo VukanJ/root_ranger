@@ -49,7 +49,7 @@ class Ranger:
         selection if the DecayTreeFitter is used.
         flat_branches and bpv_branches cannot be used at the same time."""
         if flat_branches and bpv_branches:
-            raise ValueError('Flatten and best PV selection is not possible for the same tree.')
+            raise ValueError('Flatten and best PV selection is not possible for the same target tree.')
         elif flat_branches:
             self.__ranger.FlattenTree(treename,
                                       self.__construct_regex(branches),
