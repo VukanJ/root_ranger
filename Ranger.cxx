@@ -146,17 +146,17 @@ void Ranger::JobValidityCheck(const TreeJob& job)
 
             auto treedir = inFile->GetDirectory(dir);
             if (treedir == nullptr) {
-                std::cerr << "\033[07m\033[91m[ERROR]\033[0m TDirectory \"" << dir << "\" not found in " << input_filename << '\n';
-                exit(1);
+                std::cerr << "\033[07m\033[91m[ABORT]\033[0m TDirectory \"" << dir << "\" not found in " << input_filename << '\n';
+                exit(0);
             }
             if (treedir->FindKey(tree) == nullptr) {
-                std::cerr << "\033[07m\033[91m[ERROR]\033[0m TTree \"" << tree << "\" not found in " << input_filename << '\n';
-                exit(1);
+                std::cerr << "\033[07m\033[91m[ABORT]\033[0m TTree \"" << tree << "\" not found in " << input_filename << '\n';
+                exit(0);
             }
         }
         else if (inFile->FindKey(job("tree_in")) == nullptr) {
-            std::cerr << "\033[07m\033[91m[ERROR]\033[0m TTree \"" << job("tree_in") << "\" not found in " << input_filename << '\n';
-            exit(1);
+            std::cerr << "\033[07m\033[91m[ABORT]\033[0m TTree \"" << job("tree_in") << "\" not found in " << input_filename << '\n';
+            exit(0);
         }
     }
     inFile->Close();
