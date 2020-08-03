@@ -1,11 +1,13 @@
 import os
-import sys
+from tqdm import tqdm
 import ROOT
 from ROOT import gSystem, gInterpreter
+
 thispath = os.path.abspath(os.path.dirname(__file__))
 gInterpreter.ProcessLine('#include "{0}/Ranger.h"'.format(thispath))
 gInterpreter.ProcessLine('#include "{0}/LeafBuffer.h"'.format(thispath))
 gSystem.Load(os.path.join(thispath, 'ranger.so'))
+
 
 class Ranger:
     def __init__(self, file):
@@ -39,7 +41,7 @@ class Ranger:
                                    self.__parse_cut(cut),
                                    dest)
 
-    def  add_selection(self, treename, dest='', branches='*', cut='', flat_branches='', bpv_branches=''):
+    def add_selection(self, treename, dest='', branches='*', cut='', flat_branches='', bpv_branches=''):
         """Copies a TTree to a new file using a branch selection and an optional cut.
         If flat_branches is used, the leaf counter variable associated with the branches in
         flat_branches is used to reduce the dimensionality of these leaves. If multiple
@@ -68,7 +70,6 @@ class Ranger:
                                    self.__parse_cut(cut),
                                    dest)
 
-
     def add_formula(self, formula_name, formula):
         """Adds a formula to the formula buffer that is evaluated in the next writing step.
            Branch names must start with '#'
@@ -86,6 +87,13 @@ class Ranger:
     def run(self, outfile):
         """Runs all previously defined selections in sequence"""
         self.__ranger.Run(outfile)
+
+    def run_multiple(self, infiles, outfiles):
+        """Runs all previously defined selections in sequence on a list of root files"""
+        assert len(infiles) == len(outfiles)
+        for infile, outfile in tqdm(zip(infiles, outfiles), total=len(infiles)):
+            self.__ranger.setInputFile(infile)
+            self.__ranger.Run(outfile)
 
     def __parse_cut(self, cut):
         """If cuts are given as a list, they are joined by logical AND"""
