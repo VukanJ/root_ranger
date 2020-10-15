@@ -8,6 +8,7 @@ Ranger::Ranger(const TString& rootfile)
 {
     distr = std::uniform_int_distribution<std::mt19937::result_type>(0, ULONG_MAX);
     TTree::SetMaxTreeSize(1000000000000);
+    ROOT::v5::TFormula::SetMaxima(5000);
     setInputFile(input_filename);
 }
 
